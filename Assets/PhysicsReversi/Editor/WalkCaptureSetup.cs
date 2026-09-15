@@ -35,7 +35,7 @@ namespace PhysicsReversi.Editor
             recognition.stones = root.GetComponentsInChildren<CarryStone>(true);
             EditorSceneManager.MarkSceneDirty(root.gameObject.scene); EditorSceneManager.SaveScene(root.gameObject.scene);
             Selection.activeGameObject = capture.gameObject;
-            Debug.Log("Capture rules saved. A newly released stone is checked once after settling. Physical capture animation can be tuned on Walk Capture Controller.");
+            Debug.Log("Live capture saved. Any newly formed sandwich can trigger a flip, including lines formed by pushing existing stones.");
         }
         [MenuItem("Physics Reversi/Walk/Place Capture Practice")]
         public static void PlacePractice()

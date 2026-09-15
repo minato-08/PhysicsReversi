@@ -103,6 +103,61 @@ namespace PhysicsReversi
             placements.Enqueue(0, 1); resolved = placements.Resolve(b);
             Check(resolved[0].Owner == 2 && resolved[0].CapturedIds.Count == 1,
                 "dropped black reserve landing white captures as white"); checks++;
+            var live = new RealtimeCaptures(); var free = new HashSet<int>();
+            b = new BoardRules.Snapshot();
+            b.Ids[0] = 0; b.Owners[0] = 1; b.Ids[1] = 1; b.Owners[1] = 2; b.Ids[2] = 2; b.Owners[2] = 1;
+            var liveTargets = live.Scan(b, free, .05, .15);
+            Check(liveTargets.Count == 1 && liveTargets[0] == 1, "live line captures without any placement event"); checks++;
+            Check(live.Scan(b, free, .05, .15).Count == 0, "unchanged live line does not repeat"); checks++;
+            b.Owners[0] = 2; b.Owners[1] = 1; b.Owners[2] = 2;
+            Check(live.Scan(b, free, .05, .15).Count == 0, "same physical line reversing colors does not oscillate"); checks++;
+            var empty = new BoardRules.Snapshot();
+            live.Scan(empty, new HashSet<int> { 1 }, 2, .15);
+            Check(live.Scan(b, free, .05, .15).Count == 0, "airborne capture participant preserves repeat protection"); checks++;
+            live.Scan(empty, free, .05, .15);
+            Check(live.Scan(b, free, .05, .15).Count == 0, "brief boundary dropout does not retrigger"); checks++;
+            live.Scan(empty, free, .2, .15);
+            Check(live.Scan(b, free, .05, .15).Count == 1, "broken then reformed line can capture again"); checks++;
+            live.Clear();
+            b.Ids[32] = 30; b.Owners[32] = 1; b.Ids[33] = 31; b.Owners[33] = 2; b.Ids[34] = 32; b.Owners[34] = 1;
+            liveTargets = live.Scan(b, new HashSet<int> { 1 }, .05, .15);
+            Check(liveTargets.Count == 1 && liveTargets[0] == 31, "flipping in one region does not block another"); checks++;
+            live.Clear(); liveTargets = live.Scan(b, free, .05, .15);
+            Check(liveTargets.Count == 2 && liveTargets[0] == 1 && liveTargets[1] == 31, "both colors capture from the same snapshot"); checks++;
+            live.Clear(); b = new BoardRules.Snapshot();
+            b.Ids[24] = 0; b.Owners[24] = 1; b.Ids[26] = 1; b.Owners[26] = 2; b.Ids[27] = 2; b.Owners[27] = 1;
+            Check(live.Scan(b, free, .05, .15).Count == 0, "live capture does not bridge empty cells"); checks++;
+            b.Ids[24] = -1; b.Owners[24] = 0; b.Ids[25] = 0; b.Owners[25] = 1;
+            Check(live.Scan(b, free, .05, .15).Count == 1, "pushing existing endpoint into line triggers capture"); checks++;
+            live.Clear();
+            var sources = new Dictionary<int, MotionOrigin> { { 0, new MotionOrigin(true) } };
+            // b is the prior test's [black at25, white at26, black at27].
+            var changedByPlayer = RealtimeCaptures.PlayerChanges(empty, b, sources);
+            var participants = new HashSet<int>();
+            Check(live.Scan(b, free, .05, .15, changedByPlayer, participants).Count == 1,
+                "player-caused formation still captures immediately"); checks++;
+            Check(participants.Contains(0) && participants.Contains(1) && participants.Contains(2),
+                "capture exposes all participants for action consumption"); checks++;
+            live.Clear();
+            Check(live.Scan(b, free, .05, .15, new HashSet<int>()).Count == 0,
+                "passive or flip-created formation does not capture"); checks++;
+            Check(RealtimeCaptures.PlayerChanges(b, b, sources).Count == 0,
+                "stationary endpoint with stale player history cannot start a chain"); checks++;
+            var flipMotion = new MotionOrigin(false);
+            var collisionMotion = MotionOrigin.Newest(sources[0], flipMotion);
+            Check(!collisionMotion.CanCapture, "flip collision replaces older player cause"); checks++;
+            sources[0] = collisionMotion;
+            Check(RealtimeCaptures.PlayerChanges(empty, b, sources).Count == 0,
+                "movement caused by flip has no capture eligibility"); checks++;
+            var renewed = new MotionOrigin(true); sources[0] = renewed;
+            Check(MotionOrigin.Newest(collisionMotion, renewed).CanCapture,
+                "fresh intervention after flip enables player-caused motion"); checks++;
+            changedByPlayer = RealtimeCaptures.PlayerChanges(empty, b, sources);
+            Check(live.Scan(b, free, .05, .15, changedByPlayer).Count == 1,
+                "fresh intervention can capture a previously suppressed line"); checks++;
+            var struckNeighbour = renewed;
+            renewed.Consume();
+            Check(!struckNeighbour.CanCapture, "capture consumes shared cause across collision chain"); checks++;
             return checks;
         }
     }

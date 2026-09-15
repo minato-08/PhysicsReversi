@@ -87,7 +87,16 @@ namespace PhysicsReversi
                 double total = Area(stone.Polygon);
                 if (total < 1e-9) continue;
                 int cell = -1; double first = 0, second = 0;
-                for (int z = 0; z < 8; z++) for (int x = 0; x < 8; x++)
+                double minX = double.PositiveInfinity, maxX = double.NegativeInfinity;
+                double minZ = double.PositiveInfinity, maxZ = double.NegativeInfinity;
+                foreach (var point in stone.Polygon)
+                {
+                    minX = Math.Min(minX, point.X); maxX = Math.Max(maxX, point.X);
+                    minZ = Math.Min(minZ, point.Y); maxZ = Math.Max(maxZ, point.Y);
+                }
+                int startX = Math.Max(0, (int)Math.Floor(minX + 4)), endX = Math.Min(7, (int)Math.Floor(maxX + 4));
+                int startZ = Math.Max(0, (int)Math.Floor(minZ + 4)), endZ = Math.Min(7, (int)Math.Floor(maxZ + 4));
+                for (int z = startZ; z <= endZ; z++) for (int x = startX; x <= endX; x++)
                 {
                     var p = Clip(stone.Polygon, 0, x - 4, true);
                     p = Clip(p, 0, x - 3, false);

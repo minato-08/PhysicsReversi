@@ -3746,6 +3746,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.CarryAuthority
   reach: 4.5
+  allowPlacedStonePickup: 1
+  allowOpponentStonePickup: 1
 --- !u!114 &266304605
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3892,11 +3894,9 @@ MonoBehaviour:
   - {fileID: 1515818067}
   - {fileID: 1343043496}
   - {fileID: 734633183}
+  updateInterval: 0.05
   minimumOverlap: 0.5
   boundaryTolerance: 0.03
-  stableSeconds: 0.5
-  speedThreshold: 0.05
-  spinThreshold: 0.15
   edgeFaceTolerance: 0.1
   recognitionState: Waiting
   blackRecognized: 0
@@ -3917,9 +3917,11 @@ MonoBehaviour:
   recognition: {fileID: 266304605}
   blackMaterial: {fileID: 2100000, guid: d466a502403049b42863183e50b52f08, type: 2}
   whiteMaterial: {fileID: 2100000, guid: e61c36fe8aa009f438be6ba97baaf6d2, type: 2}
-  flipDuration: 1.2
+  flipDuration: 0.61
   flipHeight: 1.8
   captureAxis: {x: 1, y: 0, z: 0}
+  lineBreakSeconds: 0.15
+  flipReleaseGrace: 0.2
   lastResult: Waiting for a placement
   lastCaptureCount: 0
 --- !u!1001 &271095396
@@ -17465,6 +17467,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.WalkPlayer
   playerId: 1
   carryPoint: {fileID: 923840667}
+  carryFollowsCamera: 1
+  minimumCarryHeight: 0.35
   moveSpeed: 6
   turnSpeed: 540
   pushStrength: 35

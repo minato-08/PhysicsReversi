@@ -17,6 +17,8 @@ namespace PhysicsReversi.Walk
         public WalkPlayer Holder { get; private set; }
         public Rigidbody Body { get; private set; }
         public bool IsFlipping { get; private set; }
+        public MotionOrigin Motion { get; private set; }
+        public void RegisterPlayerMotion() => Motion = new MotionOrigin(true);
         public void ReadUpperFace(Vector3 boardUp, float tolerance)
         {
             if (status == StoneStatus.OnBoard) ownerId = StoneFaces.Owner(Vector3.Dot(transform.up, boardUp), tolerance);
@@ -24,6 +26,7 @@ namespace PhysicsReversi.Walk
         public void Flip(Vector3 up, Vector3 axis, float height, float duration)
         {
             if (IsFlipping || Body == null || Body.isKinematic || status != StoneStatus.OnBoard) return;
+            Motion = new MotionOrigin(false);
             StartCoroutine(FlipBody(up, axis, height, duration));
         }
         IEnumerator FlipBody(Vector3 up, Vector3 axis, float height, float duration)
@@ -57,8 +60,21 @@ namespace PhysicsReversi.Walk
         public bool TouchingBoard => boardContacts.Count > 0;
         public void SetRecognition(string value) => recognition = value;
         void Awake() => Body = GetComponent<Rigidbody>();
-        void OnCollisionEnter(Collision collision) => TrackBoardContact(collision);
-        void OnCollisionStay(Collision collision) => TrackBoardContact(collision);
+        void OnCollisionEnter(Collision collision) { TrackBoardContact(collision); TrackMotion(collision); }
+        void OnCollisionStay(Collision collision) { TrackBoardContact(collision); TrackMotion(collision); }
+        void TrackMotion(Collision collision)
+        {
+            var other = collision.collider.GetComponentInParent<CarryStone>();
+            if (other == null || other == this || collision.relativeVelocity.sqrMagnitude < .0064f) return;
+            // A moving carried stone is also a deliberate tool for pushing another stone.
+            if (Holder != null && Holder.HasManipulationInput && !IsFlipping) RegisterPlayerMotion();
+            if (other.Holder != null && other.Holder.HasManipulationInput && !other.IsFlipping) other.RegisterPlayerMotion();
+            var newest = MotionOrigin.Newest(Motion, other.Motion);
+            if (newest == null) return;
+            // The capture motor remains the cause of its own motion until it finishes.
+            if (!IsFlipping) Motion = newest;
+            if (!other.IsFlipping) other.Motion = newest;
+        }
         void OnCollisionExit(Collision collision) => boardContacts.Remove(collision.collider);
         void TrackBoardContact(Collision collision)
         {
@@ -69,15 +85,25 @@ namespace PhysicsReversi.Walk
             if (supported) boardContacts.Add(collision.collider);
             else boardContacts.Remove(collision.collider);
         }
-        void OnDisable() { StopAllCoroutines(); IsFlipping = false; boardContacts.Clear(); }
-        public bool TryClaim(WalkPlayer player)
+        void OnDisable() { StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); }
+        public bool TryClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false)
         {
-            if (status != StoneStatus.Reserve || Holder != null || reserveOwnerId != player.playerId) return false;
+            if (player == null || !isActiveAndEnabled || Body == null || Holder != null || IsFlipping) return false;
+            if (status == StoneStatus.Reserve)
+            {
+                if (reserveOwnerId != player.playerId) return false;
+            }
+            else if (status == StoneStatus.OnBoard)
+            {
+                if (!allowPlaced || (!allowOpponent && ownerId != player.playerId)) return false;
+            }
+            else return false;
             Holder = player; status = StoneStatus.Held; Body.WakeUp(); return true;
         }
         public void Release()
         {
             Holder = null; status = StoneStatus.OnBoard;
+            RegisterPlayerMotion();
         }
     }
 }

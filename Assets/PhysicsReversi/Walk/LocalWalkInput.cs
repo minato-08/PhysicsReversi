@@ -41,9 +41,10 @@ namespace PhysicsReversi.Walk
                 input.x = (keys.dKey.isPressed ? 1 : 0) - (keys.aKey.isPressed ? 1 : 0);
                 input.y = (keys.wKey.isPressed ? 1 : 0) - (keys.sKey.isPressed ? 1 : 0);
             }
+            if (mouse != null) orbit.Rotate(mouse.delta.ReadValue());
+            player.SetCarryAim(Quaternion.Euler(orbit.pitch, orbit.yaw, 0));
             player.SetMovement(Quaternion.Euler(0, orbit.yaw, 0) * new Vector3(input.x, 0, input.y));
             if (mouse == null) return;
-            orbit.Rotate(mouse.delta.ReadValue());
             if (!mouse.leftButton.wasPressedThisFrame) return;
             if (player.HeldStone != null) { authority.TryRelease(player); return; }
             Ray ray = view.ViewportPointToRay(new Vector3(.5f, .5f, 0));
