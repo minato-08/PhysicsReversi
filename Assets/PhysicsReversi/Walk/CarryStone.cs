@@ -59,7 +59,25 @@ namespace PhysicsReversi.Walk
         [SerializeField] string recognition = "Not checked";
         public bool TouchingBoard => boardContacts.Count > 0;
         public void SetRecognition(string value) => recognition = value;
-        void Awake() => Body = GetComponent<Rigidbody>();
+        // Where the scene author put this stone; reserve stones return to these slots.
+        public Vector3 HomePosition { get; private set; }
+        public Quaternion HomeRotation { get; private set; }
+        public bool HasReserveSlot { get; private set; }
+        void Awake()
+        {
+            Body = GetComponent<Rigidbody>();
+            HomePosition = transform.position; HomeRotation = transform.rotation;
+            HasReserveSlot = status == StoneStatus.Reserve;
+        }
+        // Called by CarryAuthority only.
+        public void ReturnToReserve(Vector3 position, Quaternion rotation)
+        {
+            StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear();
+            Holder = null; status = StoneStatus.Reserve; ownerId = reserveOwnerId;
+            transform.SetPositionAndRotation(position, rotation);
+            Body.position = position; Body.rotation = rotation;
+            Body.linearVelocity = Vector3.zero; Body.angularVelocity = Vector3.zero;
+        }
         void OnCollisionEnter(Collision collision) { TrackBoardContact(collision); TrackMotion(collision); }
         void OnCollisionStay(Collision collision) { TrackBoardContact(collision); TrackMotion(collision); }
         void TrackMotion(Collision collision)
@@ -86,18 +104,17 @@ namespace PhysicsReversi.Walk
             else boardContacts.Remove(collision.collider);
         }
         void OnDisable() { StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); }
-        public bool TryClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false)
+        // The pickup rule without side effects; the aim highlight asks the same question.
+        public bool CanClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false)
         {
             if (player == null || !isActiveAndEnabled || Body == null || Holder != null || IsFlipping) return false;
-            if (status == StoneStatus.Reserve)
-            {
-                if (reserveOwnerId != player.playerId) return false;
-            }
-            else if (status == StoneStatus.OnBoard)
-            {
-                if (!allowPlaced || (!allowOpponent && ownerId != player.playerId)) return false;
-            }
-            else return false;
+            if (status == StoneStatus.Reserve) return reserveOwnerId == player.playerId;
+            if (status == StoneStatus.OnBoard) return allowPlaced && (allowOpponent || ownerId == player.playerId);
+            return false;
+        }
+        public bool TryClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false)
+        {
+            if (!CanClaim(player, allowPlaced, allowOpponent)) return false;
             Holder = player; status = StoneStatus.Held; Body.WakeUp(); return true;
         }
         public void Release()

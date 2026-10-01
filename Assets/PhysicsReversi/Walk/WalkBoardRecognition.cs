@@ -86,13 +86,13 @@ namespace PhysicsReversi.Walk
                     : "Unrecognized: boundary / overlap / competition");
             }
             foreach (var cell in cells)
-                if (cell != null && cell.ring != null) cell.ring.enabled = Snapshot.Ids[cell.cellIndex] >= 0;
+                if (cell != null && cell.marker != null) cell.marker.enabled = Snapshot.Ids[cell.cellIndex] >= 0;
             blackRecognized = Snapshot.Count(1); whiteRecognized = Snapshot.Count(2);
         }
         void OnDisable()
         {
             if (cells == null) return;
-            foreach (var cell in cells) if (cell != null && cell.ring != null) cell.ring.enabled = false;
+            foreach (var cell in cells) if (cell != null && cell.marker != null) cell.marker.enabled = false;
         }
     }
 }

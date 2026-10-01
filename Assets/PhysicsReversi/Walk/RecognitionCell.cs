@@ -6,6 +6,7 @@ namespace PhysicsReversi.Walk
     public sealed class RecognitionCell : MonoBehaviour
     {
         [Range(0, 63)] public int cellIndex;
-        public LineRenderer ring;
+        [Tooltip("Flat frame lying on the cell; shown while the cell holds a recognized stone.")]
+        public Renderer marker;
     }
 }
