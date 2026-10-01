@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -5,11 +6,32 @@ namespace PhysicsReversi.Walk
 {
     public sealed class LocalWalkInput : MonoBehaviour
     {
+        [Tooltip("The player currently driven by this keyboard and mouse.")]
         public WalkPlayer player;
+        [Tooltip("Players this machine can drive. Tab hands control to the next one; the others stand still.")]
+        public WalkPlayer[] players;
         public OrbitCamera orbit;
         public Camera view;
         public CarryAuthority authority;
+        // Each player keeps its own camera angle while another player is driven.
+        readonly Dictionary<WalkPlayer, Vector2> views = new Dictionary<WalkPlayer, Vector2>();
         void Start() => SetCursorCaptured(true);
+
+        void SwitchPlayer()
+        {
+            if (players == null || players.Length < 2) return;
+            int current = System.Array.IndexOf(players, player);
+            for (int step = 1; step <= players.Length; step++)
+            {
+                var next = players[(current + step + players.Length) % players.Length];
+                if (next == null || next == player || !next.isActiveAndEnabled) continue;
+                if (player != null) { player.SetMovement(Vector3.zero); views[player] = new Vector2(orbit.yaw, orbit.pitch); }
+                player = next; orbit.target = next.transform;
+                var angles = views.TryGetValue(next, out var saved) ? saved : new Vector2(next.transform.eulerAngles.y, orbit.pitch);
+                orbit.yaw = angles.x; orbit.pitch = angles.y;
+                return;
+            }
+        }
 
         void SetCursorCaptured(bool captured)
         {
@@ -35,6 +57,7 @@ namespace PhysicsReversi.Walk
                     SetCursorCaptured(true);
                 return;
             }
+            if (keys != null && keys.tabKey.wasPressedThisFrame) SwitchPlayer();
             Vector2 input = Vector2.zero;
             if (keys != null)
             {

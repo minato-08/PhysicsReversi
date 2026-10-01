@@ -35,7 +35,7 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
    - `WalkCaptureController`: `SnapshotConfirmed` を購読し `RealtimeCaptures.Scan` を実行、対象石を Rigidbody のまま物理的に180度回す（色の塗り替えや所属の強制変更はしない）。反転中の石は一時的に判定対象外。
    - `CarryAuthority`: 所属・保持の変更はすべてここを経由する（将来のネットワーク権威の置き場所）。入力コードから所属を直接書き換えないこと。
    - `CarryStone`: 石ごとの状態。`Owner Id`（上面から決まる盤上の所属）と `Reserve Owner Id`（予備石の持ち主）を別管理。
-3. **エディタセットアップ層** `Assets/PhysicsReversi/Editor/`（namespace `PhysicsReversi.Editor`）— シーン構築は手作業ではなく `Physics Reversi/Walk/...` メニューのスクリプトで行う（Scene Parts 配置、Recognition Rings、Capture Rules、Two-Sided Stones、Score HUD）。いずれも Play 停止中・`PhysicsReversiWalk` シーンで実行し、既存オブジェクトがあれば重複追加しない冪等な作り。生成アセットは `Assets/PhysicsReversi/WalkAssets/`。
+3. **エディタセットアップ層** `Assets/PhysicsReversi/Editor/`（namespace `PhysicsReversi.Editor`）— シーン構築は手作業ではなく `Physics Reversi/Walk/...` メニューのスクリプトで行う（Scene Parts 配置、Recognition Rings、Capture Rules、Two-Sided Stones、Score HUD、Add Second Player）。いずれも Play 停止中・`PhysicsReversiWalk` シーンで実行し、既存オブジェクトがあれば重複追加しない冪等な作り。生成アセットは `Assets/PhysicsReversi/WalkAssets/`。
 
 ### 旧プロトタイプ
 
@@ -43,4 +43,4 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
 
 ## 未実装（README より）
 
-手番、対局終了、盤外回収、微振動の強制収束、通信同期。現状は1人操作の試作。
+対局終了、盤外回収、微振動の強制収束、通信同期。手番は設けずリアルタイム対戦とする方針。プレイヤーは黒(1)・白(2)の2人で、現状は `LocalWalkInput` の Tab で1台のPCから切り替えて操作する。
