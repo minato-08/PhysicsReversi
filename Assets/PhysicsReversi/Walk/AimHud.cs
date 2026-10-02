@@ -1,19 +1,17 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace PhysicsReversi.Walk
 {
-    // Shows what a click would act on: a crosshair, plus an outline of the stone as seen
-    // from the camera. The outline is drawn inside the stone's silhouette with a faint
-    // tint over the rest, so the stone never looks larger or differently shaped.
+    // Shows, per player, the stone the action button would grab, and the stone being
+    // carried: an outline of the stone as seen from the camera. The outline is drawn
+    // inside the stone's silhouette with a faint tint over the rest, so the stone never
+    // looks larger or differently shaped.
     public sealed class AimHud : MonoBehaviour
     {
         public LocalWalkInput input;
-        public Image crosshair;
-        [Tooltip("Scene object that is moved onto the highlighted stone. Uses the SilhouetteHighlight materials.")]
-        public MeshRenderer highlight;
-        public Color idleColor = new Color(1, 1, 1, .55f);
-        [Header("A click would grab this stone")]
+        [Tooltip("One scene object per player, moved onto that player's stone. Uses the SilhouetteHighlight materials.")]
+        public MeshRenderer[] highlights;
+        [Header("The action would grab this stone")]
         public Color grabEdge = new Color(1, .85f, .2f, 1);
         public Color grabFill = new Color(1, .85f, .2f, .04f);
         [Tooltip("Outline thickness in pixels on a 720-pixel-high screen.")]
@@ -31,21 +29,27 @@ namespace PhysicsReversi.Walk
 
         void LateUpdate()
         {
-            var aimed = input != null ? input.AimedStone : null;
-            var held = input != null && input.player != null ? input.player.HeldStone : null;
-            if (crosshair != null) crosshair.color = aimed != null ? grabEdge : idleColor;
-            if (highlight == null) return;
-            var stone = held != null ? held : aimed;
-            highlight.enabled = stone != null;
-            if (stone == null) return;
-            if (mesh == null) Build();
-            highlight.transform.SetPositionAndRotation(stone.transform.position, stone.transform.rotation);
-            highlight.transform.localScale = stone.transform.lossyScale;
-            if (block == null) block = new MaterialPropertyBlock();
-            block.SetColor(EdgeColor, held != null ? heldEdge : grabEdge);
-            block.SetColor(FillColor, held != null ? heldFill : grabFill);
-            block.SetFloat(Width, held != null ? heldWidth : grabWidth);
-            highlight.SetPropertyBlock(block);
+            if (highlights == null) return;
+            for (int i = 0; i < highlights.Length; i++)
+            {
+                var highlight = highlights[i];
+                if (highlight == null) continue;
+                var player = input != null && input.players != null && i < input.players.Length ? input.players[i] : null;
+                var held = player != null ? player.HeldStone : null;
+                var stone = held != null ? held : input != null ? input.Target(i) : null;
+                highlight.enabled = stone != null;
+                if (stone == null) continue;
+                if (mesh == null) Build();
+                var filter = highlight.GetComponent<MeshFilter>();
+                if (filter.sharedMesh != mesh) filter.sharedMesh = mesh;
+                highlight.transform.SetPositionAndRotation(stone.transform.position, stone.transform.rotation);
+                highlight.transform.localScale = stone.transform.lossyScale;
+                if (block == null) block = new MaterialPropertyBlock();
+                block.SetColor(EdgeColor, held != null ? heldEdge : grabEdge);
+                block.SetColor(FillColor, held != null ? heldFill : grabFill);
+                block.SetFloat(Width, held != null ? heldWidth : grabWidth);
+                highlight.SetPropertyBlock(block);
+            }
         }
         // The stone mesh is a unit cylinder: radius .5, faces at local y = +1 and -1.
         // Normals here are not for lighting: the shader reads them as "away from the stone"
@@ -70,9 +74,8 @@ namespace PhysicsReversi.Walk
                 triangles[t + 9] = bottom; triangles[t + 10] = Segments + i; triangles[t + 11] = Segments + next;
             }
             mesh.vertices = vertices; mesh.normals = normals; mesh.triangles = triangles; mesh.RecalculateBounds();
-            highlight.GetComponent<MeshFilter>().sharedMesh = mesh;
         }
-        void OnDisable() { if (highlight != null) highlight.enabled = false; }
+        void OnDisable() { if (highlights != null) foreach (var highlight in highlights) if (highlight != null) highlight.enabled = false; }
         void OnDestroy() { if (mesh != null) Destroy(mesh); }
     }
 }
