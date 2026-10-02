@@ -74,14 +74,9 @@ namespace PhysicsReversi.Editor
             PlaceStone(stonePrefab, initial, "Black B", 1, StoneStatus.OnBoard, new Vector3(2, .2f, -2), black);
             var systems = Parent("Rules and local input", root.transform);
             var authority = systems.gameObject.AddComponent<CarryAuthority>();
-            var actor = new GameObject("Player 1 - Black"); actor.transform.SetParent(root.transform); actor.transform.position = new Vector3(0, .1f, -17);
-            var controller = actor.AddComponent<CharacterController>(); controller.height = 1.8f; controller.radius = .38f;
-            controller.center = new Vector3(0, .9f, 0); controller.stepOffset = .6f; controller.slopeLimit = 60;
-            var player = actor.AddComponent<WalkPlayer>(); player.playerId = 1;
-            var visual = GameObject.CreatePrimitive(PrimitiveType.Capsule); visual.name = "Appearance"; visual.transform.SetParent(actor.transform, false);
-            visual.transform.localPosition = Vector3.up * .9f; visual.transform.localScale = new Vector3(.75f, .9f, .75f);
-            Object.DestroyImmediate(visual.GetComponent<Collider>()); visual.GetComponent<Renderer>().sharedMaterial = orange;
-            player.carryPoint = Parent("Carry point - adjust hand position", actor.transform); player.carryPoint.localPosition = new Vector3(0, 1.6f, 2.1f);
+            var player = CreatePlayer(root.transform, 1, orange);
+            var rival = CreatePlayer(root.transform, 2, SecondPlayerMaterial());
+            var actor = player.gameObject;
             Camera camera = null;
             foreach (var item in scene.GetRootGameObjects()) { camera = item.GetComponentInChildren<Camera>(); if (camera != null) break; }
             if (camera == null)
@@ -89,14 +84,39 @@ namespace PhysicsReversi.Editor
                 var cameraObject = new GameObject("Main Camera"); Undo.RegisterCreatedObjectUndo(cameraObject, "Create camera");
                 camera = cameraObject.AddComponent<Camera>(); cameraObject.AddComponent<AudioListener>(); camera.tag = "MainCamera";
             }
-            Undo.RecordObject(camera.transform, "Position camera");
-            var orbit = Undo.AddComponent<OrbitCamera>(camera.gameObject); orbit.target = actor.transform;
-            camera.transform.SetPositionAndRotation(actor.transform.position + new Vector3(0, 5, -7), Quaternion.Euler(28, 0, 0));
-            var input = systems.gameObject.AddComponent<LocalWalkInput>(); input.player = player; input.orbit = orbit; input.view = camera; input.authority = authority;
+            PlaceOverviewCamera(camera);
+            var input = systems.gameObject.AddComponent<LocalWalkInput>(); input.view = camera; input.authority = authority;
+            input.players = new[] { player, rival };
             Undo.CollapseUndoOperations(group);
             EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
             Selection.activeGameObject = actor;
-            Debug.Log("Walk scene parts placed and saved. WASD: move. Mouse: camera. Aim at a nearby BLACK reserve with screen center and left click: carry; click again: release. Esc: free cursor. All parts are editable before Play.");
+            Debug.Log("Walk scene parts placed and saved. Black: WASD + F or first gamepad. White: IJKL + H or second gamepad. The action grabs the nearest stone ahead, and again releases it. All parts are editable before Play.");
+        }
+        // One fixed camera for both players, looking down from the side of the board so that
+        // Black's reserve is on the left and White's on the right.
+        internal static void PlaceOverviewCamera(Camera camera)
+        {
+            Undo.RecordObject(camera.transform, "Position camera"); Undo.RecordObject(camera, "Position camera");
+            camera.transform.SetPositionAndRotation(OverviewPosition, Quaternion.Euler(OverviewPitch, -90, 0));
+            camera.fieldOfView = OverviewFieldOfView;
+        }
+        static readonly Vector3 OverviewPosition = new Vector3(37, 48, 0);
+        const float OverviewPitch = 56, OverviewFieldOfView = 40;
+        internal static Material SecondPlayerMaterial() => MaterialAsset("Player2", new Color(.2f, .55f, 1));
+        // Players face the board from their own reserve side: Black at -Z, White at +Z.
+        internal static WalkPlayer CreatePlayer(Transform root, int playerId, Material appearance)
+        {
+            bool white = playerId == 2;
+            var actor = new GameObject(white ? "Player 2 - White" : "Player 1 - Black"); actor.transform.SetParent(root);
+            actor.transform.SetPositionAndRotation(new Vector3(0, .1f, white ? 17 : -17), Quaternion.Euler(0, white ? 180 : 0, 0));
+            var controller = actor.AddComponent<CharacterController>(); controller.height = 1.8f; controller.radius = .38f;
+            controller.center = new Vector3(0, .9f, 0); controller.stepOffset = .6f; controller.slopeLimit = 60;
+            var player = actor.AddComponent<WalkPlayer>(); player.playerId = playerId;
+            var visual = GameObject.CreatePrimitive(PrimitiveType.Capsule); visual.name = "Appearance"; visual.transform.SetParent(actor.transform, false);
+            visual.transform.localPosition = Vector3.up * .9f; visual.transform.localScale = new Vector3(.75f, .9f, .75f);
+            Object.DestroyImmediate(visual.GetComponent<Collider>()); visual.GetComponent<Renderer>().sharedMaterial = appearance;
+            player.carryPoint = Parent("Carry point - adjust hand position", actor.transform); player.carryPoint.localPosition = new Vector3(0, 1.6f, 2.1f);
+            return player;
         }
         static Transform Parent(string name, Transform parent)
         {
@@ -118,7 +138,7 @@ namespace PhysicsReversi.Editor
             PrefabUtility.RecordPrefabInstancePropertyModifications(stone);
             PrefabUtility.RecordPrefabInstancePropertyModifications(obj.GetComponent<Renderer>());
         }
-        static Material MaterialAsset(string name, Color color)
+        internal static Material MaterialAsset(string name, Color color)
         {
             string path = Folder + "/" + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);

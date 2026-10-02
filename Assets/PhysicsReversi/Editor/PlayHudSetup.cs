@@ -8,91 +8,101 @@ namespace PhysicsReversi.Editor
 {
     public static class PlayHudSetup
     {
-        const float PixelsPerUnit = 4.5f;
-        [MenuItem("Physics Reversi/Walk/Add Aim and Board HUD")]
+        [MenuItem("Physics Reversi/Walk/Add Play HUD")]
         public static void AddHud()
         {
             if (EditorApplication.isPlaying) { Debug.LogWarning("Stop Play first."); return; }
             var scene = EditorSceneManager.GetActiveScene();
             if (scene.name != "PhysicsReversiWalk") { Debug.LogWarning("Open PhysicsReversiWalk first."); return; }
-            Transform root = null;
+            Transform root = null; AimHud aim = null; bool separateScore = false;
             foreach (var item in scene.GetRootGameObjects())
             {
                 if (item.name == "Walk Prototype") root = item.transform;
+                if (aim == null) aim = item.GetComponentInChildren<AimHud>(true);
+                var score = item.GetComponentInChildren<ScoreHud>(true);
+                if (score != null && score.GetComponent<AimHud>() == null) separateScore = true;
             }
             if (root == null) { Debug.LogWarning("Place Editable Scene Parts first."); return; }
-            foreach (var item in scene.GetRootGameObjects())
-            {
-                var existing = item.GetComponentInChildren<AimHud>(true);
-                if (existing == null) continue;
-                // Earlier versions drew floating rings or painted bands; replace only that part.
-                if (existing.highlight == null || existing.highlight.sharedMaterials.Length != 3)
-                {
-                    Undo.RecordObject(existing, "Upgrade aim highlight");
-                    existing.highlight = Highlight(root);
-                    EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
-                    Debug.Log("Aim highlight upgraded to the silhouette outline. HUD layout and camera settings are preserved.");
-                }
-                else Debug.Log("Aim and Board HUD already exists; its layout and the camera settings are preserved.");
-                return;
-            }
             var recognition = root.GetComponentInChildren<WalkBoardRecognition>();
             var input = root.GetComponentInChildren<LocalWalkInput>();
-            if (recognition == null || input == null || input.player == null || input.orbit == null)
-            { Debug.LogWarning("Add Recognition Rings first."); return; }
-            Undo.IncrementCurrentGroup(); int group = Undo.GetCurrentGroup(); Undo.SetCurrentGroupName("Add aim and board HUD");
+            if (recognition == null || input == null || input.view == null || input.players == null || input.players.Length == 0)
+            { Debug.LogWarning("Add Recognition Rings first (and Add Second Player on a scene without players registered)."); return; }
+            Undo.IncrementCurrentGroup(); int group = Undo.GetCurrentGroup(); Undo.SetCurrentGroupName("Add play HUD");
 
-            // Shoulder camera: applied once, together with the crosshair it is tuned for.
-            Undo.RecordObject(input.orbit, "Shoulder camera");
-            input.orbit.distance = 10; input.orbit.height = 2.6f; input.orbit.pitch = 38; input.orbit.shoulderOffset = 1.4f;
-
-            var canvasObject = new GameObject("Play HUD", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(AimHud), typeof(BoardMapHud));
-            Undo.RegisterCreatedObjectUndo(canvasObject, "Create play HUD");
-            var canvas = canvasObject.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = 10;
-            var scaler = canvasObject.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280, 720); scaler.matchWidthOrHeight = .5f;
-
-            var aim = canvasObject.GetComponent<AimHud>(); aim.input = input;
-            aim.highlight = Highlight(root);
-            aim.crosshair = Box(canvasObject.transform, "Crosshair", Vector2.zero, new Vector2(6, 6), Color.white);
-
-            // Panel covers the whole walkable floor, so the marker stays visible at the reserves.
-            float cell = recognition.cellWidth * PixelsPerUnit;
-            var panel = Box(canvasObject.transform, "Board Map", Vector2.zero, new Vector2(48 * PixelsPerUnit, 60 * PixelsPerUnit), new Color(.035f, .045f, .065f, .8f)).rectTransform;
-            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(1, 1); panel.anchoredPosition = new Vector2(-16, -16);
-            var knob = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
-            var map = canvasObject.GetComponent<BoardMapHud>();
-            map.recognition = recognition; map.player = input.player.transform; map.view = input.orbit.transform;
-            map.pixelsPerUnit = PixelsPerUnit; map.stones = new Image[64];
-            for (int z = 0; z < 8; z++) for (int x = 0; x < 8; x++)
+            // A scene built for the earlier over-the-shoulder view still carries its camera script,
+            // crosshair and map. Replace those once; later runs keep whatever was tuned by hand.
+            if (GameObjectUtility.RemoveMonoBehavioursWithMissingScript(input.view.gameObject) > 0) WalkSceneSetup.PlaceOverviewCamera(input.view);
+            GameObject canvasObject;
+            if (aim == null)
             {
-                var position = new Vector2((x - 3.5f) * cell, (z - 3.5f) * cell);
-                var square = Box(panel, "Cell " + x + "," + z, position, new Vector2(cell - 1, cell - 1),
-                    (x + z) % 2 == 0 ? new Color(.07f, .25f, .24f) : new Color(.11f, .32f, .29f));
-                var stone = Box(square.transform, "Stone", Vector2.zero, new Vector2(cell - 5, cell - 5), Color.white);
-                stone.sprite = knob; stone.enabled = false; map.stones[z * 8 + x] = stone;
+                canvasObject = new GameObject("Play HUD", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(AimHud));
+                Undo.RegisterCreatedObjectUndo(canvasObject, "Create play HUD");
+                var canvas = canvasObject.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = 10;
+                var scaler = canvasObject.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1280, 720); scaler.matchWidthOrHeight = .5f;
+                aim = canvasObject.GetComponent<AimHud>();
             }
-            var marker = Box(panel, "Player marker (points where the camera looks)", Vector2.zero, new Vector2(9, 9), new Color(1, .48f, .14f));
-            Box(marker.transform, "Nose", new Vector2(0, 8), new Vector2(3, 8), new Color(1, .48f, .14f));
-            map.marker = marker.rectTransform;
-
-            // Stone counts reuse ScoreHud; skipped when a separate Score HUD is already in the scene.
-            bool hasScore = false;
-            foreach (var item in scene.GetRootGameObjects()) if (item != canvasObject && item.GetComponentInChildren<ScoreHud>(true) != null) hasScore = true;
-            if (!hasScore)
+            else
             {
-                var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-                var score = Undo.AddComponent<ScoreHud>(canvasObject); score.recognition = recognition;
-                float top = 30 * PixelsPerUnit - 16;
-                score.blackScore = Label(panel, "Black Score", "--", new Vector2(-50, top), 22, font);
-                score.whiteScore = Label(panel, "White Score", "--", new Vector2(50, top), 22, font);
-                Label(panel, "Black Label", "BLACK", new Vector2(-50, top - 20), 11, font);
-                Label(panel, "White Label", "WHITE", new Vector2(50, top - 20), 11, font);
+                canvasObject = aim.gameObject;
+                GameObjectUtility.RemoveMonoBehavioursWithMissingScript(canvasObject);
+                var crosshair = canvasObject.transform.Find("Crosshair");
+                if (crosshair != null) Undo.DestroyObjectImmediate(crosshair.gameObject);
             }
+            Undo.RecordObject(aim, "Connect play HUD");
+            aim.input = input;
+            var single = root.Find("Aim Highlight");
+            if (single != null) Undo.DestroyObjectImmediate(single.gameObject);
+            var highlights = new MeshRenderer[input.players.Length];
+            for (int i = 0; i < highlights.Length; i++)
+            {
+                var kept = aim.highlights != null && i < aim.highlights.Length ? aim.highlights[i] : null;
+                highlights[i] = kept != null && kept.sharedMaterials.Length == 3 ? kept : Highlight(root, "Grab Highlight " + (i + 1));
+            }
+            aim.highlights = highlights;
+
+            // Stone counts sit at the top centre; skipped when a separate Score HUD is already in the scene.
+            var panel = canvasObject.transform.Find("Score Panel") as RectTransform;
+            var map = canvasObject.transform.Find("Board Map") as RectTransform;
+            if (panel == null && map != null)
+            {
+                for (int i = map.childCount - 1; i >= 0; i--)
+                    if (map.GetChild(i).GetComponent<Text>() == null) Undo.DestroyObjectImmediate(map.GetChild(i).gameObject);
+                Undo.RecordObject(map.gameObject, "Map to score panel"); map.name = "Score Panel"; panel = map;
+                LayOutScore(panel, canvasObject, recognition);
+            }
+            else if (panel == null && !separateScore)
+            {
+                panel = Box(canvasObject.transform, "Score Panel", Vector2.zero, Vector2.zero, new Color(.035f, .045f, .065f, .8f)).rectTransform;
+                LayOutScore(panel, canvasObject, recognition);
+            }
+            EditorUtility.SetDirty(aim);
             Undo.CollapseUndoOperations(group);
             EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
             Selection.activeGameObject = canvasObject;
-            Debug.Log("Aim and Board HUD saved. A stone's edge lights up only when a click would grab it. Mouse wheel zooms. Edit Play HUD layout before Play.");
+            Debug.Log("Play HUD saved: one grab highlight per player and the stone counts. Edit the Play HUD layout before Play.");
+        }
+        static void LayOutScore(RectTransform panel, GameObject canvasObject, WalkBoardRecognition recognition)
+        {
+            Undo.RecordObject(panel, "Lay out score");
+            panel.anchorMin = panel.anchorMax = panel.pivot = new Vector2(.5f, 1); panel.anchoredPosition = new Vector2(0, -12); panel.sizeDelta = new Vector2(210, 58);
+            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var score = canvasObject.GetComponent<ScoreHud>();
+            if (score == null) score = Undo.AddComponent<ScoreHud>(canvasObject);
+            Undo.RecordObject(score, "Lay out score");
+            score.recognition = recognition;
+            score.blackScore = ScoreLabel(panel, "Black Score", "--", new Vector2(-50, 9), 22, font);
+            score.whiteScore = ScoreLabel(panel, "White Score", "--", new Vector2(50, 9), 22, font);
+            ScoreLabel(panel, "Black Label", "BLACK", new Vector2(-50, -13), 11, font);
+            ScoreLabel(panel, "White Label", "WHITE", new Vector2(50, -13), 11, font);
+        }
+        static Text ScoreLabel(Transform panel, string name, string value, Vector2 position, int fontSize, Font font)
+        {
+            var existing = panel.Find(name);
+            if (existing == null) return Label(panel, name, value, position, fontSize, font);
+            Undo.RecordObject(existing, "Lay out score");
+            ((RectTransform)existing).anchoredPosition = position;
+            return existing.GetComponent<Text>();
         }
         // One shader, three materials, drawn in queue order: mask, edge, fill (see the shader header).
         static Material[] HighlightMaterials()
@@ -121,12 +131,10 @@ namespace PhysicsReversi.Editor
             material.SetFloat("_ZTest", depth); material.SetFloat("_ColorMask", colorMask);
             EditorUtility.SetDirty(material); return material;
         }
-        static MeshRenderer Highlight(Transform root)
+        static MeshRenderer Highlight(Transform root, string name)
         {
-            var old = root.Find("Aim Highlight");
-            if (old != null) Undo.DestroyObjectImmediate(old.gameObject);
-            var obj = new GameObject("Aim Highlight", typeof(MeshFilter), typeof(MeshRenderer)); obj.transform.SetParent(root, false);
-            Undo.RegisterCreatedObjectUndo(obj, "Create aim highlight");
+            var obj = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer)); obj.transform.SetParent(root, false);
+            Undo.RegisterCreatedObjectUndo(obj, "Create grab highlight");
             var renderer = obj.GetComponent<MeshRenderer>(); renderer.sharedMaterials = HighlightMaterials();
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; renderer.receiveShadows = false;
             renderer.enabled = false; return renderer;
