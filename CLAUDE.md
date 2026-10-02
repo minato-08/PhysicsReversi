@@ -36,9 +36,9 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
    - `WalkBoardRecognition`: `FixedUpdate` で一定間隔ごとに石のメッシュ頂点を盤平面へ投影し `BoardRules.Recognize` → `SnapshotConfirmed` イベント。静止判定はなく、盤に接地している `OnBoard` の石は動いていても毎回 `CarryStone.ReadUpperFace` で `ownerId` を書き換える。盤の `cellWidth`（ワールド単位）を正規化座標へ変換している。
    - `WalkCaptureController`: `SnapshotConfirmed` を購読し `RealtimeCaptures.Scan` を実行、対象石を Rigidbody のまま物理的に180度回す（色の塗り替えや所属の強制変更はしない）。反転中の石は一時的に判定対象外。
    - `CarryAuthority`: 掴む・離す（保持と `status` の変更）はすべてここを経由する（将来のネットワーク権威の置き場所）。入力コードから直接書き換えないこと。盤上の所属 `ownerId` はここではなく認識処理が書く。床から落ちた石を予備へ戻す処理（`FixedUpdate` → `ReturnToReserve`）もここにある。掴める石の範囲は未確定で、`allowPlacedStonePickup` / `allowOpponentStonePickup` を Inspector で切り替えて試している（現シーンは両方オン）。
-   - `LocalWalkInput`: 画面中央のレイで「いま狙っている石」(`AimedStone`) と、持ち石を浮かせる面の点を毎フレーム決める。クリック時はその結果を `CarryAuthority` に渡すだけ。`AimHud`（照準と、石の輪郭の強調。`WalkAssets/SilhouetteHighlight.shader` をマスク・線・塗りの3マテリアルで使い、輪郭の内側に線を描く）と `BoardMapHud`（右上のマップ）は表示専用で、ルールには関与しない。
+   - `LocalWalkInput`: 1 台・1 画面で 2 人を同時に操作する入力。`players[0]` が黒（1 台目のゲームパッド、WASD+F）、`players[1]` が白（2 台目、IJKL+H）。操作は移動方向と掴む・離すの 1 ボタンだけで、移動は固定カメラ `view` 基準。照準はなく、正面のいちばん近い掴める石（`Target(index)`）を `CarryAuthority` に渡す。`AimHud` はプレイヤーごとにその石の輪郭を強調する表示専用（`WalkAssets/SilhouetteHighlight.shader` をマスク・線・塗りの3マテリアルで使い、輪郭の内側に線を描く）。カメラはスクリプトなしの固定（盤の横から見下ろし、黒が左・白が右）。持ち石は `WalkPlayer.carryPoint`（正面）に浮く。
    - `CarryStone`: 石ごとの状態。`Owner Id`（上面から決まる盤上の所属）と `Reserve Owner Id`（予備石の持ち主）を別管理。
-3. **エディタセットアップ層** `Assets/PhysicsReversi/Editor/`（namespace `PhysicsReversi.Editor`）— シーン構築は手作業ではなく `Physics Reversi/Walk/...` メニューのスクリプトで行う（Scene Parts 配置、Recognition Rings、Capture Rules、Two-Sided Stones、Capture Practice、Aim and Board HUD、Score HUD）。いずれも Play 停止中・`PhysicsReversiWalk` シーンで実行し、既存オブジェクトがあれば重複追加しない冪等な作り。生成アセットは `Assets/PhysicsReversi/WalkAssets/`。
+3. **エディタセットアップ層** `Assets/PhysicsReversi/Editor/`（namespace `PhysicsReversi.Editor`）— シーン構築は手作業ではなく `Physics Reversi/Walk/...` メニューのスクリプトで行う（Scene Parts 配置、Recognition Rings、Capture Rules、Two-Sided Stones、Capture Practice、Play HUD、Second Player、Score HUD）。いずれも Play 停止中・`PhysicsReversiWalk` シーンで実行し、既存オブジェクトがあれば重複追加しない冪等な作り。生成アセットは `Assets/PhysicsReversi/WalkAssets/`。
 
 ### 旧プロトタイプ
 
@@ -46,4 +46,4 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
 
 ## 未実装（README より）
 
-手番、対局終了、微振動の強制収束、通信同期、2人目のプレイヤー。現状は黒1人操作の試作。
+手番、対局終了、微振動の強制収束、通信同期（オンラインは当面の目標外）。黒(1)・白(2)の2人が1台のPCで同時に操作する。
