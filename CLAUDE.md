@@ -8,6 +8,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 複数の環境（PC）から作業するため、`CLAUDE.md` などのコンテキストファイルはコミット・Push してよい。`ProjectSettings/ProjectVersion.txt` は環境ごとの Unity パッチ版差で書き換わるので、意図しない限りコミットしない。
 
+## 進め方（シーン・コミット・ブランチ）
+
+- **main は採用した版を置く場所**。直接は編集せず、作業はブランチで行う。ブランチは「1 つの方針の試み」で、採用すると決めたら main へマージし、採用しないならマージしない。複数のブランチを混ぜ合わせることはしない。
+- 採用したら早めに main へ入れ、次の作業は新しい main から分岐する。別の方針を比べたいときは、同じ分岐点から 2 本作って片方だけ採用する。不採用側から一部が欲しくなったら、マージではなく採用側で書き直す。
+- **シーンは同時に 1 本のブランチでしか編集しない**。シーンファイルのコンフリクトは手で解決できない。ぶつかったら片方を丸ごと採用し、もう片方はセットアップメニューの再実行でやり直す（手作業の配置調整は再現できないので注意）。
+- **新しい試みや大幅な変更は、既存シーンを直接編集せず、複製シーンか新規シーンで行う**。採用が決まったら本体のシーンへ反映し、試作シーンは消す。セットアップメニューはシーン名 `PhysicsReversiWalk` を決め打ちで確認しているので、複製先で使うときは条件を直す。
+- **方針が決まった後の古い版は、シーンやスクリプトとして残さず git の履歴に任せる**。動く状態で残すとルール変更のたびに両方を直すことになり、動かないまま残すと後で意図が分からなくなる。残すのは、近いうちに開いて触り比べる予定があるときだけ。
+- 履歴に任せる前提として、**区切りごとに細かくコミットする**（動作確認が取れたとき、大きな作り替えに入る前、ドキュメント更新）。
+
 ## ビルド・テスト
 
 CLI ビルドスクリプトや Unity Test Framework のテストはない。検証は Unity エディタ上で行う。
@@ -17,6 +26,7 @@ CLI ビルドスクリプトや Unity Test Framework のテストはない。検
   - 個別テストの実行機構はない。`RulesChecks.cs`（Editor フォルダにあるが namespace は `PhysicsReversi`）は1本のメソッドに `Check(...); checks++;` を並べた形式なので、テスト追加もこの形式に合わせる。
 - コンパイルエラー確認・Play・シーン操作は Unity CLI（`unity` コマンド、Unity プラグインの `unity:unity-cli` スキル）で開いているエディタを操作して行う。`unity status` で接続を確認する。プロジェクト側に `com.unity.pipeline` パッケージが必要。Coplay MCP は使わない。
   - Play を CLI から検証するとき、エディタが最前面でないとゲームが進まない。Play 開始後に `unity command eval 'UnityEngine.Application.runInBackground = true; return 1;'` を実行する。この値はプロジェクト設定（`ProjectSettings.asset` の `runInBackground`）に残るので、検証が終わったら編集モードで `UnityEditor.PlayerSettings.runInBackground = false; UnityEditor.AssetDatabase.SaveAssets();` を実行して戻す。画面撮影は `capture_game_view --source screen`（保存先は `Assets/` 配下に限られるので、撮影後に `.meta` ごと片付ける）。
+  - `eval` から呼べるのは `public` なメンバーだけ（`internal` は別アセンブリ扱いで見えない）。キーやゲームパッドの入力は CLI から送れないので、入力そのものは手で確認する。
   - Play 中でないときに `eval` でシーン上のオブジェクトの値を書き換えると、編集中のシーンが変わってしまう。検証用の `eval` は先頭で `EditorApplication.isPlaying` を確認する。
 - 見た目・反転の手触り・衝突結果は Play での手動確認が必要。
 
