@@ -71,6 +71,9 @@ namespace PhysicsReversi.Editor
                 controller.radius = .25f; controller.stepOffset = .1f;
             }
 
+            // The one-button ready stance and throw are tried here only; the bowl-cell scene keeps the plain drop.
+            foreach (var authority in root.GetComponentsInChildren<CarryAuthority>(true)) authority.allowThrow = true;
+
             EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
             Debug.Log("Flat trial scene created and opened: " + Target + ". The walk scene with bowl cells is unchanged.");
         }

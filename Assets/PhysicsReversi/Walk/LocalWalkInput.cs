@@ -35,32 +35,37 @@ namespace PhysicsReversi.Walk
             {
                 var player = players[i];
                 if (player == null || !player.isActiveAndEnabled) { targets[i] = null; continue; }
-                Read(i, out Vector2 move, out bool action);
+                Read(i, out Vector2 move, out bool pressed, out bool released);
                 player.SetMovement(heading * new Vector3(move.x, 0, move.y));
                 targets[i] = player.HeldStone == null ? NearestGrabbable(player) : null;
-                if (!action) continue;
-                if (player.HeldStone != null) authority.TryRelease(player);
-                else if (targets[i] != null) authority.TryGrab(player, targets[i]);
+                // One button. It grabs; while carrying, pressing it readies the stone and letting
+                // go puts the stone down or throws it. The authority decides which.
+                if (pressed)
+                {
+                    if (player.HeldStone != null) authority.TryReady(player);
+                    else if (targets[i] != null) authority.TryGrab(player, targets[i]);
+                }
+                if (released && player.IsReady) authority.TryRelease(player);
             }
         }
 
         // Gamepad and keyboard are both live, so a pad can be picked up without any setting.
-        void Read(int index, out Vector2 move, out bool action)
+        void Read(int index, out Vector2 move, out bool pressed, out bool released)
         {
-            move = Vector2.zero; action = false;
+            move = Vector2.zero; pressed = released = false;
             var keyboard = Keyboard.current;
             if (keyboard != null && index < Keys.Length)
             {
                 var keys = Keys[index];
                 move.x = (keyboard[keys[3]].isPressed ? 1 : 0) - (keyboard[keys[2]].isPressed ? 1 : 0);
                 move.y = (keyboard[keys[0]].isPressed ? 1 : 0) - (keyboard[keys[1]].isPressed ? 1 : 0);
-                action = keyboard[keys[4]].wasPressedThisFrame;
+                pressed = keyboard[keys[4]].wasPressedThisFrame; released = keyboard[keys[4]].wasReleasedThisFrame;
             }
             if (index >= Gamepad.all.Count) return;
             var pad = Gamepad.all[index];
             Vector2 stick = pad.leftStick.ReadValue() + pad.dpad.ReadValue();
             if (stick.magnitude > stickDeadZone) move += stick;
-            action |= pad.buttonSouth.wasPressedThisFrame;
+            pressed |= pad.buttonSouth.wasPressedThisFrame; released |= pad.buttonSouth.wasReleasedThisFrame;
         }
 
         CarryStone NearestGrabbable(WalkPlayer player)

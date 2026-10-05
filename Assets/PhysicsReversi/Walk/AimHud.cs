@@ -20,6 +20,9 @@ namespace PhysicsReversi.Walk
         public Color heldEdge = new Color(1, 1, 1, .8f);
         public Color heldFill = new Color(1, 1, 1, .015f);
         [Range(1, 12)] public float heldWidth = 2.5f;
+        [Header("A charging throw (the carried stone's outline grows toward this)")]
+        public Color chargedEdge = new Color(1, .85f, .2f, 1);
+        [Range(1, 12)] public float chargedWidth = 6;
         const int Segments = 48;
         static readonly int EdgeColor = Shader.PropertyToID("_EdgeColor");
         static readonly int FillColor = Shader.PropertyToID("_FillColor");
@@ -45,9 +48,11 @@ namespace PhysicsReversi.Walk
                 highlight.transform.SetPositionAndRotation(stone.transform.position, stone.transform.rotation);
                 highlight.transform.localScale = stone.transform.lossyScale;
                 if (block == null) block = new MaterialPropertyBlock();
-                block.SetColor(EdgeColor, held != null ? heldEdge : grabEdge);
+                // 0 while merely carrying; rises to 1 as a throw charges.
+                float charge = held != null && input.authority != null ? Mathf.Max(0, input.authority.Charge(player)) : 0;
+                block.SetColor(EdgeColor, held != null ? Color.Lerp(heldEdge, chargedEdge, charge) : grabEdge);
                 block.SetColor(FillColor, held != null ? heldFill : grabFill);
-                block.SetFloat(Width, held != null ? heldWidth : grabWidth);
+                block.SetFloat(Width, held != null ? Mathf.Lerp(heldWidth, chargedWidth, charge) : grabWidth);
                 highlight.SetPropertyBlock(block);
             }
         }

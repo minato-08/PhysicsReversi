@@ -2653,6 +2653,13 @@ MonoBehaviour:
   allowOpponentStonePickup: 1
   lockConfirmedStones: 1
   turnHeldStoneToHolderColor: 1
+  allowThrow: 1
+  tapSeconds: 0.2
+  chargeSeconds: 1.2
+  minThrowSpeed: 5
+  maxThrowSpeed: 14
+  readyHeight: 0.12
+  readyForce: 150
   fallDepth: 10
   slotClearance: 1.5
 --- !u!114 &266304605
@@ -5841,6 +5848,8 @@ MonoBehaviour:
   heldEdge: {r: 1, g: 1, b: 1, a: 0.8}
   heldFill: {r: 1, g: 1, b: 1, a: 0.015}
   heldWidth: 2.5
+  chargedEdge: {r: 1, g: 0.85, b: 0.2, a: 1}
+  chargedWidth: 6
 --- !u!114 &641144579
 MonoBehaviour:
   m_ObjectHideFlags: 0

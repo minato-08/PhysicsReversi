@@ -191,6 +191,12 @@ namespace PhysicsReversi
             Check(flipped.Confirmed, "confirmed stone stays confirmed through a capture flip"); checks++;
             flipped.Reset();
             Check(!flipped.Confirmed && flipped.Cell == -1, "released or returned stone starts unconfirmed"); checks++;
+            // One button while carrying: a tap of .2 seconds, then 1 second to charge from speed 5 to 14.
+            Check(StoneThrow.Charge(.1, .2, 1) < 0, "a short press puts the stone down instead of throwing it"); checks++;
+            Check(StoneThrow.Charge(.2, .2, 1) == 0 && StoneThrow.Speed(0, 5, 14) == 5, "a press just past a tap throws at the lowest speed"); checks++;
+            Check(Math.Abs(StoneThrow.Charge(.7, .2, 1) - .5) < 1e-9 && Math.Abs(StoneThrow.Speed(.5, 5, 14) - 9.5) < 1e-9,
+                "throw speed grows with the time held"); checks++;
+            Check(StoneThrow.Charge(9, .2, 1) == 1 && StoneThrow.Speed(1, 5, 14) == 14, "a full charge does not grow further"); checks++;
             return checks;
         }
     }
