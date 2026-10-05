@@ -16,6 +16,9 @@ namespace PhysicsReversi.Walk
         [Header("Local repeat prevention (never stops other parts of the board)")]
         [Range(.05f, .5f)] public float lineBreakSeconds = .15f;
         [Range(.05f, .5f)] public float flipReleaseGrace = .2f;
+        [Header("Capturing stones")]
+        [Tooltip("The stones at both ends of a line that captures are confirmed at once, so the stone that made the capture cannot be picked up and used again.")]
+        public bool confirmCapturingStones = true;
         [Header("Live capture")]
         [SerializeField] string lastResult = "Watching for new lines";
         [SerializeField] int lastCaptureCount;
@@ -30,11 +33,11 @@ namespace PhysicsReversi.Walk
         {
             lastScanTime = Time.time;
             previousSnapshot = new BoardRules.Snapshot();
-            if (recognition != null) recognition.SnapshotConfirmed += OnSnapshot;
+            if (recognition != null) recognition.SnapshotUpdated += OnSnapshot;
         }
         void OnDisable()
         {
-            if (recognition != null) recognition.SnapshotConfirmed -= OnSnapshot;
+            if (recognition != null) recognition.SnapshotUpdated -= OnSnapshot;
             detector.Clear(); unavailableUntil.Clear();
         }
         void Start()
@@ -57,8 +60,14 @@ namespace PhysicsReversi.Walk
             var playerChanged = RealtimeCaptures.PlayerChanges(previousSnapshot, snapshot, origins);
             previousSnapshot = snapshot;
             var participants = new HashSet<int>();
-            var targets = detector.Scan(snapshot, unavailable, delta, lineBreakSeconds, playerChanged, participants);
+            var capturingEnds = new HashSet<int>();
+            var targets = detector.Scan(snapshot, unavailable, delta, lineBreakSeconds, playerChanged, participants, capturingEnds);
             if (targets.Count == 0) return;
+            // Capturing commits the stones that did it. Left loose, the stone just placed could
+            // be picked up again before it confirmed and used to capture line after line.
+            if (confirmCapturingStones)
+                foreach (int id in capturingEnds)
+                    if (recognition.stones[id] != null) recognition.stones[id].ConfirmAt(System.Array.IndexOf(snapshot.Ids, id));
             // Consume only player actions that actually formed these lines. Shared causes
             // also stop a struck neighbour from firing a delayed secondary capture.
             foreach (int id in participants)

@@ -19,6 +19,32 @@ namespace PhysicsReversi.Walk
         public bool IsFlipping { get; private set; }
         public MotionOrigin Motion { get; private set; }
         public void RegisterPlayerMotion() => Motion = new MotionOrigin(true);
+        readonly StoneConfirmation confirmation = new StoneConfirmation();
+        // Recognized in one cell for long enough; see StoneConfirmation.
+        public bool Confirmed => confirmation.Confirmed;
+        // The cell this stone is confirmed in, or -1.
+        public int ConfirmedCell => confirmation.Confirmed ? confirmation.Cell : -1;
+        // Called by the board recognition only, once per sample, after it has set the
+        // recognition text. cell is -1 when the stone is not recognized.
+        public void TickConfirmation(int cell, float deltaSeconds, float confirmSeconds, float loosenSeconds)
+        {
+            if (status != StoneStatus.OnBoard) confirmation.Reset();
+            else confirmation.Tick(cell, IsFlipping, deltaSeconds, confirmSeconds, loosenSeconds);
+            if (Confirmed) recognition += " / confirmed";
+        }
+        // Called by the capture controller only: a stone at the end of a line that captured is committed on the spot.
+        public void ConfirmAt(int cell) { if (status == StoneStatus.OnBoard) confirmation.ConfirmNow(cell); }
+        // How firmly the stone is held in its cell, 0 to 1. Held stones are heavier, and so harder to shove.
+        public float Hold { get; private set; }
+        float baseMass;
+        // Called by the board recognition only, after TickConfirmation.
+        public void SetHold(float strength, float multiplier)
+        {
+            Hold = strength;
+            float mass = baseMass * (float)StoneHold.MassFactor(strength, multiplier);
+            if (!Mathf.Approximately(Body.mass, mass)) Body.mass = mass;
+            if (Confirmed && multiplier > 1) recognition += ", hold " + Mathf.RoundToInt(strength * 100) + "%";
+        }
         public void ReadUpperFace(Vector3 boardUp, float tolerance)
         {
             if (status == StoneStatus.OnBoard) ownerId = StoneFaces.Owner(Vector3.Dot(transform.up, boardUp), tolerance);
@@ -56,6 +82,10 @@ namespace PhysicsReversi.Walk
             IsFlipping = false;
         }
         readonly HashSet<Collider> boardContacts = new HashSet<Collider>();
+        // Against another stone now, or a moment ago. The memory outlasts the rebound after a hit,
+        // so a readied stone cannot get its full drive back between one bump and the next.
+        public bool TouchingStone => Time.time - stoneTouchTime < .4f;
+        float stoneTouchTime = -1;
         [SerializeField] string recognition = "Not checked";
         public bool TouchingBoard => boardContacts.Count > 0;
         public void SetRecognition(string value) => recognition = value;
@@ -65,14 +95,14 @@ namespace PhysicsReversi.Walk
         public bool HasReserveSlot { get; private set; }
         void Awake()
         {
-            Body = GetComponent<Rigidbody>();
+            Body = GetComponent<Rigidbody>(); baseMass = Body.mass;
             HomePosition = transform.position; HomeRotation = transform.rotation;
             HasReserveSlot = status == StoneStatus.Reserve;
         }
         // Called by CarryAuthority only.
         public void ReturnToReserve(Vector3 position, Quaternion rotation)
         {
-            StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear();
+            StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); confirmation.Reset();
             Holder = null; status = StoneStatus.Reserve; ownerId = reserveOwnerId;
             transform.SetPositionAndRotation(position, rotation);
             Body.position = position; Body.rotation = rotation;
@@ -83,7 +113,9 @@ namespace PhysicsReversi.Walk
         void TrackMotion(Collision collision)
         {
             var other = collision.collider.GetComponentInParent<CarryStone>();
-            if (other == null || other == this || collision.relativeVelocity.sqrMagnitude < .0064f) return;
+            if (other == null || other == this) return;
+            stoneTouchTime = Time.time;
+            if (collision.relativeVelocity.sqrMagnitude < .0064f) return;
             // A moving carried stone is also a deliberate tool for pushing another stone.
             if (Holder != null && Holder.HasManipulationInput && !IsFlipping) RegisterPlayerMotion();
             if (other.Holder != null && other.Holder.HasManipulationInput && !other.IsFlipping) other.RegisterPlayerMotion();
@@ -96,30 +128,34 @@ namespace PhysicsReversi.Walk
         void OnCollisionExit(Collision collision) => boardContacts.Remove(collision.collider);
         void TrackBoardContact(Collision collision)
         {
-            if (collision.collider.GetComponent<RecognitionCell>() == null) return;
+            if (collision.collider.GetComponent<RecognitionCell>() == null && collision.collider.GetComponent<BoardSurface>() == null) return;
             bool supported = false;
             foreach (var contact in collision.contacts)
                 if (Vector3.Dot(contact.normal, collision.collider.transform.up) > .2f) { supported = true; break; }
             if (supported) boardContacts.Add(collision.collider);
             else boardContacts.Remove(collision.collider);
         }
-        void OnDisable() { StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); }
+        void OnDisable() { StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); confirmation.Reset(); }
         // The pickup rule without side effects; the aim highlight asks the same question.
-        public bool CanClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false)
+        public bool CanClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false, bool lockConfirmed = false)
         {
             if (player == null || !isActiveAndEnabled || Body == null || Holder != null || IsFlipping) return false;
             if (status == StoneStatus.Reserve) return reserveOwnerId == player.playerId;
-            if (status == StoneStatus.OnBoard) return allowPlaced && (allowOpponent || ownerId == player.playerId);
+            // A confirmed stone has to be knocked out of its cell before anyone can pick it up.
+            if (status == StoneStatus.OnBoard)
+                return allowPlaced && (allowOpponent || ownerId == player.playerId) && !(lockConfirmed && Confirmed);
             return false;
         }
-        public bool TryClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false)
+        public bool TryClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false, bool lockConfirmed = false)
         {
-            if (!CanClaim(player, allowPlaced, allowOpponent)) return false;
+            if (!CanClaim(player, allowPlaced, allowOpponent, lockConfirmed)) return false;
             Holder = player; status = StoneStatus.Held; Body.WakeUp(); return true;
         }
         public void Release()
         {
             Holder = null; status = StoneStatus.OnBoard;
+            // A released stone always starts loose, even if grabbed and dropped between two samples.
+            confirmation.Reset();
             RegisterPlayerMotion();
         }
     }

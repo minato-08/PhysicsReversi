@@ -28,7 +28,7 @@ namespace PhysicsReversi
         }
 
         public List<int> Scan(BoardRules.Snapshot board, HashSet<int> unavailable, double deltaSeconds, double rearmSeconds,
-            HashSet<int> playerChanged = null, HashSet<int> activatedParticipants = null)
+            HashSet<int> playerChanged = null, HashSet<int> activatedParticipants = null, HashSet<int> capturingEnds = null)
         {
             var present = new HashSet<string>();
             var targets = new HashSet<int>();
@@ -66,6 +66,7 @@ namespace PhysicsReversi
                                         latches[key] = new Latch { Participants = participants.ToArray() };
                                         foreach (int id in middle) targets.Add(id);
                                         if (activatedParticipants != null) foreach (int id in participants) activatedParticipants.Add(id);
+                                        if (capturingEnds != null) { capturingEnds.Add(a); capturingEnds.Add(b); }
                                     }
                                 }
                             }

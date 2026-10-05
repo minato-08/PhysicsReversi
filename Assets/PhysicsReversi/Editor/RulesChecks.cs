@@ -96,6 +96,8 @@ namespace PhysicsReversi
             Check(StoneFaces.Owner(1) == 1 && StoneFaces.Owner(-1) == 2, "physical upper face determines owner"); checks++;
             Check(StoneFaces.Owner(0) == 0 && StoneFaces.Owner(.05) == 0, "edge-standing stone has no owner"); checks++;
             Check(StoneFaces.Owner(-.8) == 2 && StoneFaces.Owner(.8) == 1, "tilted faces retain readable ownership"); checks++;
+            Check(StoneFaces.Owner(StoneFaces.UpSign(1)) == 1 && StoneFaces.Owner(StoneFaces.UpSign(2)) == 2,
+                "a stone turned for its holder shows the holder's color"); checks++;
             b = new BoardRules.Snapshot();
             b.Ids[0] = 0; b.Owners[0] = 2;
             b.Ids[1] = 1; b.Owners[1] = 1;
@@ -158,6 +160,70 @@ namespace PhysicsReversi
             var struckNeighbour = renewed;
             renewed.Consume();
             Check(!struckNeighbour.CanCapture, "capture consumes shared cause across collision chain"); checks++;
+            // Confirmation: 1.5 seconds in one cell to confirm, .5 seconds out of it to come loose.
+            // The first sample in a cell only starts the count.
+            var settled = new StoneConfirmation();
+            settled.Tick(27, false, 1, 1.5, .5); settled.Tick(27, false, 1, 1.5, .5);
+            Check(!settled.Confirmed, "stone is not confirmed before the time is up"); checks++;
+            settled.Tick(27, false, 1, 1.5, .5);
+            Check(settled.Confirmed && settled.Cell == 27, "stone recognized in one cell long enough is confirmed"); checks++;
+            settled.Tick(-1, false, .25, 1.5, .5); settled.Tick(27, false, .25, 1.5, .5); settled.Tick(-1, false, .25, 1.5, .5);
+            Check(settled.Confirmed, "brief dropouts do not add up to loosen a confirmed stone"); checks++;
+            settled.Tick(-1, false, .25, 1.5, .5);
+            Check(!settled.Confirmed, "confirmed stone out of its cell long enough comes loose"); checks++;
+            var pushed = new StoneConfirmation();
+            for (int i = 0; i < 3; i++) pushed.Tick(27, false, 1, 1.5, .5);
+            pushed.Tick(28, false, .25, 1.5, .5); pushed.Tick(28, false, .25, 1.5, .5);
+            Check(!pushed.Confirmed && pushed.Cell == 28, "confirmed stone pushed into another cell comes loose"); checks++;
+            pushed.Tick(28, false, 1, 1.5, .5);
+            Check(!pushed.Confirmed, "pushed stone counts from the start in its new cell"); checks++;
+            pushed.Tick(28, false, 1, 1.5, .5);
+            Check(pushed.Confirmed && pushed.Cell == 28, "pushed stone is confirmed again in its new cell"); checks++;
+            var wandering = new StoneConfirmation();
+            wandering.Tick(27, false, 1, 1.5, .5); wandering.Tick(27, false, 1, 1.5, .5);
+            wandering.Tick(28, false, 1, 1.5, .5); wandering.Tick(28, false, 1, 1.5, .5);
+            Check(!wandering.Confirmed, "changing cell before confirmation restarts the count"); checks++;
+            wandering.Tick(-1, false, .05, 1.5, .5); wandering.Tick(28, false, 1, 1.5, .5); wandering.Tick(28, false, 1, 1.5, .5);
+            Check(!wandering.Confirmed, "losing recognition before confirmation restarts the count"); checks++;
+            var flipped = new StoneConfirmation();
+            for (int i = 0; i < 3; i++) flipped.Tick(27, false, 1, 1.5, .5);
+            flipped.Tick(-1, true, 5, 1.5, .5);
+            Check(flipped.Confirmed, "confirmed stone stays confirmed through a capture flip"); checks++;
+            flipped.Reset();
+            Check(!flipped.Confirmed && flipped.Cell == -1, "released or returned stone starts unconfirmed"); checks++;
+            // A stone that makes a capture is committed on the spot, without the wait.
+            var committed = new StoneConfirmation();
+            committed.Tick(27, false, .05, 1.5, .5); committed.ConfirmNow(27);
+            Check(committed.Confirmed && committed.Cell == 27, "a stone that captures is confirmed at once"); checks++;
+            committed.Tick(27, false, 5, 1.5, .5); committed.Tick(-1, false, .25, 1.5, .5);
+            Check(committed.Confirmed, "a stone confirmed by capturing rides out a brief dropout like any other"); checks++;
+            committed.Tick(-1, false, .25, 1.5, .5);
+            Check(!committed.Confirmed, "a stone confirmed by capturing still comes loose when knocked out of its cell"); checks++;
+            live.Clear(); b = new BoardRules.Snapshot();
+            b.Ids[0] = 10; b.Owners[0] = 1; b.Ids[1] = 11; b.Owners[1] = 2; b.Ids[2] = 12; b.Owners[2] = 1;
+            var ends = new HashSet<int>();
+            liveTargets = live.Scan(b, free, .05, .15, null, null, ends);
+            Check(liveTargets.Count == 1 && liveTargets[0] == 11 && ends.Count == 2 && ends.Contains(10) && ends.Contains(12),
+                "both ends of a capturing line are reported, and not the stone it flips"); checks++;
+            ends.Clear();
+            Check(live.Scan(b, free, .05, .15, null, null, ends).Count == 0 && ends.Count == 0,
+                "a line that has already captured reports no ends again"); checks++;
+            // One button while carrying: a tap of .2 seconds, then 1 second to charge from speed 5 to 14.
+            Check(StoneThrow.Charge(.1, .2, 1) < 0, "a short press puts the stone down instead of throwing it"); checks++;
+            Check(StoneThrow.Charge(.2, .2, 1) == 0 && StoneThrow.Speed(0, 5, 14) == 5, "a press just past a tap throws at the lowest speed"); checks++;
+            Check(Math.Abs(StoneThrow.Charge(.7, .2, 1) - .5) < 1e-9 && Math.Abs(StoneThrow.Speed(.5, 5, 14) - 9.5) < 1e-9,
+                "throw speed grows with the time held"); checks++;
+            Check(StoneThrow.Charge(9, .2, 1) == 1 && StoneThrow.Speed(1, 5, 14) == 14, "a full charge does not grow further"); checks++;
+            // Hold: full within .1 cells of the center of the stone's cell, none from .45 out. Cell 27 is centered on (-.5, -.5).
+            Check(Math.Abs(StoneHold.CenterDistance(-.5, -.5, 27)) < 1e-9 && Math.Abs(StoneHold.CenterDistance(-.2, -.5, 27) - .3) < 1e-9,
+                "distance is measured from the center of the stone's own cell"); checks++;
+            Check(StoneHold.Strength(0, .1, .45) == 1 && StoneHold.Strength(.1, .1, .45) == 1, "a well-centered stone is held fully"); checks++;
+            Check(StoneHold.Strength(.45, .1, .45) == 0 && StoneHold.Strength(.6, .1, .45) == 0, "a stone at the edge of its cell is not held"); checks++;
+            double halfway = StoneHold.Strength(.275, .1, .45);
+            Check(Math.Abs(halfway - .5) < 1e-9 && StoneHold.Strength(.2, .1, .45) > halfway && StoneHold.Strength(.35, .1, .45) < halfway,
+                "hold falls off smoothly with distance from the center"); checks++;
+            Check(StoneHold.MassFactor(0, 4) == 1 && StoneHold.MassFactor(1, 4) == 4 && StoneHold.MassFactor(.5, 4) == 2.5,
+                "hold makes a stone heavier, up to the multiplier"); checks++;
             return checks;
         }
     }

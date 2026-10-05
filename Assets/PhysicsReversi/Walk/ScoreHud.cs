@@ -23,13 +23,13 @@ namespace PhysicsReversi.Walk
         {
             if (recognition == null || !recognition.isActiveAndEnabled)
             { SetText(statusText, "Recognition unavailable"); return; }
-            if (recognition.HasConfirmedSnapshot && displayed != recognition.Snapshot)
+            if (recognition.HasSnapshot && displayed != recognition.Snapshot)
             {
                 displayed = recognition.Snapshot;
                 SetText(blackScore, displayed.Count(1).ToString());
                 SetText(whiteScore, displayed.Count(2).ToString());
             }
-            SetText(statusText, !recognition.HasConfirmedSnapshot ? loadingLabel : liveLabel);
+            SetText(statusText, !recognition.HasSnapshot ? loadingLabel : liveLabel);
         }
         static void SetText(Text target, string value)
         {
