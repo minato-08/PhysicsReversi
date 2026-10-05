@@ -22,6 +22,8 @@ namespace PhysicsReversi.Walk
         readonly StoneConfirmation confirmation = new StoneConfirmation();
         // Recognized in one cell for long enough; see StoneConfirmation.
         public bool Confirmed => confirmation.Confirmed;
+        // The cell this stone is confirmed in, or -1.
+        public int ConfirmedCell => confirmation.Confirmed ? confirmation.Cell : -1;
         // Called by the board recognition only, once per sample, after it has set the
         // recognition text. cell is -1 when the stone is not recognized.
         public void TickConfirmation(int cell, float deltaSeconds, float confirmSeconds, float loosenSeconds)

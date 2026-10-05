@@ -19,6 +19,8 @@ namespace PhysicsReversi.Walk
         [Min(0)] public float confirmSeconds = 1.5f;
         [Tooltip("A confirmed stone out of its cell for this long comes loose again. Shorter dropouts are ignored.")]
         [Min(0)] public float loosenSeconds = .5f;
+        [Tooltip("Color of the corner marks around a confirmed stone. Other recognized cells keep the mark material's own color.")]
+        public Color confirmedMark = new Color(.82f, .95f, .9f, 1);
         [Header("Current board")]
         [SerializeField] string recognitionState = "Starting";
         [SerializeField] int blackRecognized;
@@ -28,6 +30,8 @@ namespace PhysicsReversi.Walk
         public BoardRules.Snapshot Snapshot { get; private set; } = new BoardRules.Snapshot();
         public bool HasSnapshot { get; private set; }
         public event System.Action<BoardRules.Snapshot> SnapshotUpdated;
+        static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
+        MaterialPropertyBlock confirmedLook;
         float elapsed;
         MeshFilter[] filters;
         Vector3[][] meshVertices;
@@ -106,6 +110,15 @@ namespace PhysicsReversi.Walk
                 var stone = stones[i]; if (stone == null) continue;
                 stone.TickConfirmation(System.Array.IndexOf(Snapshot.Ids, i), deltaSeconds, confirmSeconds, loosenSeconds);
                 if (stone.Confirmed) confirmedStones++;
+            }
+            // The marks of a cell deepen once its stone is confirmed there.
+            if (confirmedLook == null) confirmedLook = new MaterialPropertyBlock();
+            confirmedLook.SetColor(BaseColor, confirmedMark);
+            foreach (var cell in cells)
+            {
+                if (cell == null || cell.marker == null) continue;
+                int id = Snapshot.Ids[cell.cellIndex];
+                cell.marker.SetPropertyBlock(id >= 0 && stones[id].ConfirmedCell == cell.cellIndex ? confirmedLook : null);
             }
         }
         void OnDisable()
