@@ -96,6 +96,8 @@ namespace PhysicsReversi
             Check(StoneFaces.Owner(1) == 1 && StoneFaces.Owner(-1) == 2, "physical upper face determines owner"); checks++;
             Check(StoneFaces.Owner(0) == 0 && StoneFaces.Owner(.05) == 0, "edge-standing stone has no owner"); checks++;
             Check(StoneFaces.Owner(-.8) == 2 && StoneFaces.Owner(.8) == 1, "tilted faces retain readable ownership"); checks++;
+            Check(StoneFaces.Owner(StoneFaces.UpSign(1)) == 1 && StoneFaces.Owner(StoneFaces.UpSign(2)) == 2,
+                "a stone turned for its holder shows the holder's color"); checks++;
             b = new BoardRules.Snapshot();
             b.Ids[0] = 0; b.Owners[0] = 2;
             b.Ids[1] = 1; b.Owners[1] = 1;

@@ -14,6 +14,8 @@ namespace PhysicsReversi.Walk
         public bool allowOpponentStonePickup;
         [Tooltip("Confirmed stones cannot be picked up; they have to be knocked out of their cell first.")]
         public bool lockConfirmedStones = true;
+        [Tooltip("A picked-up stone turns over so that its holder's color faces up.")]
+        public bool turnHeldStoneToHolderColor = true;
         [Header("Fallen stones")]
         [Tooltip("A stone this far below the board has left the stage and returns to its reserve owner's rack.")]
         [Min(1)] public float fallDepth = 10;
@@ -75,7 +77,7 @@ namespace PhysicsReversi.Walk
                     board != null ? board.edgeFaceTolerance : .1f);
             }
             if (!stone.TryClaim(actor, allowPlacedStonePickup, allowOpponentStonePickup, lockConfirmedStones)) return false;
-            actor.Attach(stone); return true;
+            actor.Attach(stone, turnHeldStoneToHolderColor); return true;
         }
         public bool TryRelease(WalkPlayer actor)
         {

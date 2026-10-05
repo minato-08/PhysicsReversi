@@ -82,7 +82,11 @@
 - `Allow Opponent Stone Pickup`：オフにすると、盤上の石は上面が自分の色のものだけになります。
 - `Lock Confirmed Stones`：オフにすると、確定した石も掴めます（確定を導入する前の挙動）。
 
-持ち運び中は掴んだときの表裏を保ちます。
+### 持った石の向き
+
+- 掴んだ石は、**持ち主の色が上を向く**ように水平へ回ります。相手の色を上にしていた未確定の石を掴むと、裏返って自分の色になります。
+- 回るのは物理的な動作で、裏返るまでに約 0.5 秒、水平に落ち着くまでに約 0.8 秒かかります。回りきる前に離すと、途中の向きのまま落ちます。
+- `Turn Held Stone To Holder Color` をオフにすると、掴んだときの向きを保ちます（以前の挙動）。
 
 ### 床から落ちた石
 
@@ -99,6 +103,7 @@
 - Fall Depth：盤よりこれだけ低くなった石を予備へ戻す（初期値 10 m）
 - Slot Clearance：予備の置き場所が埋まっているとみなす距離
 - Allow Placed Stone Pickup / Allow Opponent Stone Pickup / Lock Confirmed Stones：掴める石の範囲を変えるスイッチ（「掴める石」を参照）
+- Turn Held Stone To Holder Color：掴んだ石を持ち主の色が上になるよう回すかどうか
 
 `Rules and local input` → **Walk Board Recognition**
 
@@ -167,7 +172,7 @@
 
 ## テスト
 
-メニュー `Physics Reversi → Run Rule Checks` で、ルール部分のテスト 66 項目を実行します。見た目・反転の手触り・衝突結果は Play での確認が必要です。
+メニュー `Physics Reversi → Run Rule Checks` で、ルール部分のテスト 67 項目を実行します。見た目・反転の手触り・衝突結果は Play での確認が必要です。
 
 ## 未実装
 

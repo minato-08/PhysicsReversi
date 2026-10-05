@@ -44,10 +44,14 @@ namespace PhysicsReversi.Walk
             if (degrees > 180) degrees -= 360;
             if (axis.sqrMagnitude > .001f && !float.IsNaN(axis.x)) body.angularVelocity = axis * Mathf.Clamp(degrees * Mathf.Deg2Rad * 5, -6, 6);
         }
-        public void Attach(CarryStone stone)
+        public void Attach(CarryStone stone, bool showOwnColor = false)
         {
             HeldStone = stone;
-            carryRotationOffset = Quaternion.Inverse(carryPoint.rotation) * stone.Body.rotation;
+            // Carried level with the holder's own color up, or just as it was picked up.
+            Quaternion carried = showOwnColor
+                ? Quaternion.FromToRotation(stone.transform.up, Vector3.up * StoneFaces.UpSign(playerId)) * stone.Body.rotation
+                : stone.Body.rotation;
+            carryRotationOffset = Quaternion.Inverse(carryPoint.rotation) * carried;
             oldDamping = stone.Body.linearDamping; oldAngularDamping = stone.Body.angularDamping;
             stone.Body.useGravity = false; stone.Body.linearDamping = 0; stone.Body.angularDamping = 2;
             heldColliders = stone.GetComponentsInChildren<Collider>();
