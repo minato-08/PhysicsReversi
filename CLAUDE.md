@@ -41,13 +41,14 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
    - `StoneFaces.Owner(upDot)`: 上面方向との内積から所属を決める（黒=1 が +Y、白=2 が -Y、横倒しは 0）。
    - `RealtimeCaptures`: 現行 Walk モードの捕獲判定。配置イベントではなく「ラインの形成」で発火し、ライン単位のラッチで同じ並びの再発火や色反転での振動を防ぐ。
    - `MotionOrigin`: 石の動きの原因（プレイヤー起因か、反転演出起因か）。**プレイヤー起因の動きだけが捕獲を起こせる**。捕獲すると同一アクションで動いた石すべての原因が消費され、反転が新たな捕獲を連鎖させない。
+   - `StoneConfirmation`: 石 1 個ぶんの「確定した石」の状態。同じマスに認識され続けると確定し、そのマスから外れ続けると未確定に戻る（別のマスへ移った場合も外れた扱いで、そこで数え直す）。捕獲の反転中は状態を保つ。
    - `PlacementCaptures`: 配置キュー方式の旧捕獲判定（全配置を同一スナップショットで評価）。現在は `RulesChecks` からしか呼ばれない。
 2. **Walk 実行層** `Assets/PhysicsReversi/Walk/`（namespace `PhysicsReversi.Walk`）— シーン `Assets/Scenes/PhysicsReversiWalk.unity`。
-   - `WalkBoardRecognition`: `FixedUpdate` で一定間隔ごとに石のメッシュ頂点を盤平面へ投影し `BoardRules.Recognize` → `SnapshotUpdated` イベント。静止判定はなく、盤に接地している `OnBoard` の石は動いていても毎回 `CarryStone.ReadUpperFace` で `ownerId` を書き換える。盤の `cellWidth`（ワールド単位）を正規化座標へ変換している。
+   - `WalkBoardRecognition`: `FixedUpdate` で一定間隔ごとに石のメッシュ頂点を盤平面へ投影し `BoardRules.Recognize` → `SnapshotUpdated` イベント。静止判定はなく、盤に接地している `OnBoard` の石は動いていても毎回 `CarryStone.ReadUpperFace` で `ownerId` を書き換える。盤の `cellWidth`（ワールド単位）を正規化座標へ変換している。認識のたびに全石の `CarryStone.TickConfirmation` を呼んで確定状態を進める（秒数は `confirmSeconds` / `loosenSeconds`）。
    - `WalkCaptureController`: `SnapshotUpdated` を購読し `RealtimeCaptures.Scan` を実行、対象石を Rigidbody のまま物理的に180度回す（色の塗り替えや所属の強制変更はしない）。反転中の石は一時的に判定対象外。
    - `CarryAuthority`: 掴む・離す（保持と `status` の変更）はすべてここを経由する（将来のネットワーク権威の置き場所）。入力コードから直接書き換えないこと。盤上の所属 `ownerId` はここではなく認識処理が書く。床から落ちた石を予備へ戻す処理（`FixedUpdate` → `ReturnToReserve`）もここにある。掴める石の範囲は未確定で、`allowPlacedStonePickup` / `allowOpponentStonePickup` を Inspector で切り替えて試している（現シーンは両方オン）。
    - `LocalWalkInput`: 1 台・1 画面で 2 人を同時に操作する入力。`players[0]` が黒（1 台目のゲームパッド、WASD+F）、`players[1]` が白（2 台目、IJKL+H）。操作は移動方向と掴む・離すの 1 ボタンだけで、移動は固定カメラ `view` 基準。照準はなく、正面のいちばん近い掴める石（`Target(index)`）を `CarryAuthority` に渡す。`AimHud` はプレイヤーごとにその石の輪郭を強調する表示専用（`WalkAssets/SilhouetteHighlight.shader` をマスク・線・塗りの3マテリアルで使い、輪郭の内側に線を描く）。カメラはスクリプトなしの固定（盤の横から見下ろし、黒が左・白が右）。持ち石は `WalkPlayer.carryPoint`（正面）に浮く。
-   - `CarryStone`: 石ごとの状態。`Owner Id`（上面から決まる盤上の所属）と `Reserve Owner Id`（予備石の持ち主）を別管理。
+   - `CarryStone`: 石ごとの状態。`Owner Id`（上面から決まる盤上の所属）と `Reserve Owner Id`（予備石の持ち主）を別管理。`Confirmed` は確定した石かどうか（`StoneConfirmation` を 1 つ持ち、離す・予備へ戻すときにリセットする）。
 3. **エディタセットアップ層** `Assets/PhysicsReversi/Editor/`（namespace `PhysicsReversi.Editor`）— シーン構築は手作業ではなく `Physics Reversi/Walk/...` メニューのスクリプトで行う（Scene Parts 配置、Recognition Rings、Capture Rules、Two-Sided Stones、Capture Practice、Play HUD、Second Player、Score HUD）。いずれも Play 停止中・`PhysicsReversiWalk` シーンで実行し、既存オブジェクトがあれば重複追加しない冪等な作り。例外は Bevel Stone Edges で、石のメッシュアセットをその場で作り直すだけなのでシーンを問わない（石の見た目は `TwoSidedStone.asset`、当たり判定は Unity 標準の円柱で別物）。生成アセットは `Assets/PhysicsReversi/WalkAssets/`。
 
 ### 旧プロトタイプ

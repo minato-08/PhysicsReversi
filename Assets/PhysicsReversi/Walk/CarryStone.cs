@@ -19,6 +19,17 @@ namespace PhysicsReversi.Walk
         public bool IsFlipping { get; private set; }
         public MotionOrigin Motion { get; private set; }
         public void RegisterPlayerMotion() => Motion = new MotionOrigin(true);
+        readonly StoneConfirmation confirmation = new StoneConfirmation();
+        // Recognized in one cell for long enough; see StoneConfirmation.
+        public bool Confirmed => confirmation.Confirmed;
+        // Called by the board recognition only, once per sample, after it has set the
+        // recognition text. cell is -1 when the stone is not recognized.
+        public void TickConfirmation(int cell, float deltaSeconds, float confirmSeconds, float loosenSeconds)
+        {
+            if (status != StoneStatus.OnBoard) confirmation.Reset();
+            else confirmation.Tick(cell, IsFlipping, deltaSeconds, confirmSeconds, loosenSeconds);
+            if (Confirmed) recognition += " / confirmed";
+        }
         public void ReadUpperFace(Vector3 boardUp, float tolerance)
         {
             if (status == StoneStatus.OnBoard) ownerId = StoneFaces.Owner(Vector3.Dot(transform.up, boardUp), tolerance);
@@ -72,7 +83,7 @@ namespace PhysicsReversi.Walk
         // Called by CarryAuthority only.
         public void ReturnToReserve(Vector3 position, Quaternion rotation)
         {
-            StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear();
+            StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); confirmation.Reset();
             Holder = null; status = StoneStatus.Reserve; ownerId = reserveOwnerId;
             transform.SetPositionAndRotation(position, rotation);
             Body.position = position; Body.rotation = rotation;
@@ -103,7 +114,7 @@ namespace PhysicsReversi.Walk
             if (supported) boardContacts.Add(collision.collider);
             else boardContacts.Remove(collision.collider);
         }
-        void OnDisable() { StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); }
+        void OnDisable() { StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); confirmation.Reset(); }
         // The pickup rule without side effects; the aim highlight asks the same question.
         public bool CanClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false)
         {
@@ -120,6 +131,8 @@ namespace PhysicsReversi.Walk
         public void Release()
         {
             Holder = null; status = StoneStatus.OnBoard;
+            // A released stone always starts loose, even if grabbed and dropped between two samples.
+            confirmation.Reset();
             RegisterPlayerMotion();
         }
     }

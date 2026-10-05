@@ -158,6 +158,37 @@ namespace PhysicsReversi
             var struckNeighbour = renewed;
             renewed.Consume();
             Check(!struckNeighbour.CanCapture, "capture consumes shared cause across collision chain"); checks++;
+            // Confirmation: 1.5 seconds in one cell to confirm, .5 seconds out of it to come loose.
+            // The first sample in a cell only starts the count.
+            var settled = new StoneConfirmation();
+            settled.Tick(27, false, 1, 1.5, .5); settled.Tick(27, false, 1, 1.5, .5);
+            Check(!settled.Confirmed, "stone is not confirmed before the time is up"); checks++;
+            settled.Tick(27, false, 1, 1.5, .5);
+            Check(settled.Confirmed && settled.Cell == 27, "stone recognized in one cell long enough is confirmed"); checks++;
+            settled.Tick(-1, false, .25, 1.5, .5); settled.Tick(27, false, .25, 1.5, .5); settled.Tick(-1, false, .25, 1.5, .5);
+            Check(settled.Confirmed, "brief dropouts do not add up to loosen a confirmed stone"); checks++;
+            settled.Tick(-1, false, .25, 1.5, .5);
+            Check(!settled.Confirmed, "confirmed stone out of its cell long enough comes loose"); checks++;
+            var pushed = new StoneConfirmation();
+            for (int i = 0; i < 3; i++) pushed.Tick(27, false, 1, 1.5, .5);
+            pushed.Tick(28, false, .25, 1.5, .5); pushed.Tick(28, false, .25, 1.5, .5);
+            Check(!pushed.Confirmed && pushed.Cell == 28, "confirmed stone pushed into another cell comes loose"); checks++;
+            pushed.Tick(28, false, 1, 1.5, .5);
+            Check(!pushed.Confirmed, "pushed stone counts from the start in its new cell"); checks++;
+            pushed.Tick(28, false, 1, 1.5, .5);
+            Check(pushed.Confirmed && pushed.Cell == 28, "pushed stone is confirmed again in its new cell"); checks++;
+            var wandering = new StoneConfirmation();
+            wandering.Tick(27, false, 1, 1.5, .5); wandering.Tick(27, false, 1, 1.5, .5);
+            wandering.Tick(28, false, 1, 1.5, .5); wandering.Tick(28, false, 1, 1.5, .5);
+            Check(!wandering.Confirmed, "changing cell before confirmation restarts the count"); checks++;
+            wandering.Tick(-1, false, .05, 1.5, .5); wandering.Tick(28, false, 1, 1.5, .5); wandering.Tick(28, false, 1, 1.5, .5);
+            Check(!wandering.Confirmed, "losing recognition before confirmation restarts the count"); checks++;
+            var flipped = new StoneConfirmation();
+            for (int i = 0; i < 3; i++) flipped.Tick(27, false, 1, 1.5, .5);
+            flipped.Tick(-1, true, 5, 1.5, .5);
+            Check(flipped.Confirmed, "confirmed stone stays confirmed through a capture flip"); checks++;
+            flipped.Reset();
+            Check(!flipped.Confirmed && flipped.Cell == -1, "released or returned stone starts unconfirmed"); checks++;
             return checks;
         }
     }

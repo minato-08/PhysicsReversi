@@ -14,10 +14,16 @@ namespace PhysicsReversi.Walk
         [Range(.25f, 1)] public float minimumOverlap = .5f;
         [Range(.001f, .1f)] public float boundaryTolerance = .03f;
         [Range(0, .5f)] public float edgeFaceTolerance = .1f;
+        [Header("Confirmed stones")]
+        [Tooltip("A stone recognized in the same cell for this long becomes confirmed.")]
+        [Min(0)] public float confirmSeconds = 1.5f;
+        [Tooltip("A confirmed stone out of its cell for this long comes loose again. Shorter dropouts are ignored.")]
+        [Min(0)] public float loosenSeconds = .5f;
         [Header("Current board")]
         [SerializeField] string recognitionState = "Starting";
         [SerializeField] int blackRecognized;
         [SerializeField] int whiteRecognized;
+        [SerializeField] int confirmedStones;
         public string RecognitionState => recognitionState;
         public BoardRules.Snapshot Snapshot { get; private set; } = new BoardRules.Snapshot();
         public bool HasSnapshot { get; private set; }
@@ -47,9 +53,11 @@ namespace PhysicsReversi.Walk
         void FixedUpdate()
         {
             elapsed += Time.fixedDeltaTime;
-            if (elapsed < Mathf.Max(.02f, updateInterval)) return;
-            elapsed -= Mathf.Max(.02f, updateInterval);
+            float interval = Mathf.Max(.02f, updateInterval);
+            if (elapsed < interval) return;
+            elapsed -= interval;
             Recognize();
+            Confirm(interval);
             HasSnapshot = true;
             recognitionState = "Live";
             SnapshotUpdated?.Invoke(Snapshot);
@@ -88,6 +96,17 @@ namespace PhysicsReversi.Walk
             foreach (var cell in cells)
                 if (cell != null && cell.marker != null) cell.marker.enabled = Snapshot.Ids[cell.cellIndex] >= 0;
             blackRecognized = Snapshot.Count(1); whiteRecognized = Snapshot.Count(2);
+        }
+        // Every stone is ticked, not only the recognized ones: time out of a cell counts too.
+        void Confirm(float deltaSeconds)
+        {
+            confirmedStones = 0;
+            for (int i = 0; i < stones.Length; i++)
+            {
+                var stone = stones[i]; if (stone == null) continue;
+                stone.TickConfirmation(System.Array.IndexOf(Snapshot.Ids, i), deltaSeconds, confirmSeconds, loosenSeconds);
+                if (stone.Confirmed) confirmedStones++;
+            }
         }
         void OnDisable()
         {
