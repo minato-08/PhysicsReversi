@@ -16,6 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **新しい試みや大幅な変更は、既存シーンを直接編集せず、複製シーンか新規シーンで行う**。採用が決まったら本体のシーンへ反映し、試作シーンは消す。セットアップメニューはシーン名 `PhysicsReversiWalk` を決め打ちで確認しているので、複製先で使うときは条件を直す。
 - **方針が決まった後の古い版は、シーンやスクリプトとして残さず git の履歴に任せる**。動く状態で残すとルール変更のたびに両方を直すことになり、動かないまま残すと後で意図が分からなくなる。残すのは、近いうちに開いて触り比べる予定があるときだけ。
 - 履歴に任せる前提として、**区切りごとに細かくコミットする**（動作確認が取れたとき、大きな作り替えに入る前、ドキュメント更新）。
+- **計画（`SPEC.md`）、実装（`README.md` とコード）、いま考えていることが食い違ってきたら、実装を進める前に文書を直す**。食い違いは `SPEC.md` の「計画と実装の食い違い」に書き出し、検討中の考えは「決まっていないこと」に候補として書く。決まっていない候補は実装しない。
+- **ルールを実装する前に、そのルールが前提にしている行為（押す、当てる、など）がシーンの上で実際に起こせるかを Play で測る**。コードに処理があることと、シーンで起こせることは別（下の「シーンの物理」を参照）。
 
 ## ビルド・テスト
 
@@ -51,10 +53,20 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
    - `CarryStone`: 石ごとの状態。`Owner Id`（上面から決まる盤上の所属）と `Reserve Owner Id`（予備石の持ち主）を別管理。`Confirmed` は確定した石かどうか（`StoneConfirmation` を 1 つ持ち、離す・予備へ戻すときにリセットする）。
 3. **エディタセットアップ層** `Assets/PhysicsReversi/Editor/`（namespace `PhysicsReversi.Editor`）— シーン構築は手作業ではなく `Physics Reversi/Walk/...` メニューのスクリプトで行う（Scene Parts 配置、Recognition Rings、Capture Rules、Two-Sided Stones、Capture Practice、Play HUD、Second Player、Score HUD）。いずれも Play 停止中・`PhysicsReversiWalk` シーンで実行し、既存オブジェクトがあれば重複追加しない冪等な作り。例外は Bevel Stone Edges で、石のメッシュアセットをその場で作り直すだけなのでシーンを問わない（石の見た目は `TwoSidedStone.asset`、当たり判定は Unity 標準の円柱で別物）。生成アセットは `Assets/PhysicsReversi/WalkAssets/`。
 
+### シーンの物理（ルールの前提）
+
+盤の形や摩擦は仕様として決めたものではなく、シーンとアセットの作り。数値と測った条件は `README.md` の「盤と石の物理」にある（2026-10-06 に Play で実測）。
+
+- マスはお椀型（深さ 0.45）で、摩擦が低い（動 0.04 / 静 0.1）。石（半径 1.3、厚さ 0.36、重さ 10）はお椀に収まると盤の面から 0.14 しか出ない。
+- プレイヤーの `CharacterController` は半径 0.38、`stepOffset` 0.6。石の上面がこの両方より低いと、押さずに石へ乗り上げて越える。いまの石は平らな床の上でも押せない。押す処理（`WalkPlayer.OnControllerColliderHit`）はあるが、測定では石は動かなかった。
+- 持ち石は足元から 1.6 上（`carryPoint`）で、置かれた石の 0.86 以上、上を通る。「持ち石がぶつかった石」の扱い（`CarryStone.TrackMotion`）は、置かれた石に対してはまず起きない。
+- 捕獲の反転（`CarryStone.FlipBody`）は速度を直接書き換えるので、反転する石に乗り上げた石を跳ね飛ばす。
+- この結果、お椀に収まって確定した石は、掴めず（`lockConfirmedStones`）、押せず、当てられない。`SPEC.md` の「計画と実装の食い違い」に書いてある。
+
 ### 旧プロトタイプ
 
 `Assets/PhysicsReversi/Prototype.unity` + `PrototypeGame.cs` + `TuningConfig`（`Tuning.asset`）はランチャーで石を撃つ初期版。`BoardRules` を共有しているため、ルール層を変更するときは両方への影響を考慮する。
 
 ## 未実装（README より）
 
-手番、対局終了、微振動の強制収束、通信同期（オンラインは当面の目標外）。黒(1)・白(2)の2人が1台のPCで同時に操作する。
+手番、対局終了、微振動の強制収束、通信同期（オンラインは当面の目標外）、確定した石の動きにくさ、確定した石を崩す手段（いまは成り立っていない）。黒(1)・白(2)の2人が1台のPCで同時に操作する。
