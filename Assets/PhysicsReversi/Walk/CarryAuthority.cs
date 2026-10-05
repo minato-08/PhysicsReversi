@@ -29,10 +29,10 @@ namespace PhysicsReversi.Walk
         [Min(0)] public float maxThrowSpeed = 20;
         [Tooltip("Height of a readied stone's center above its holder's position. The default leaves it just clear of the ground, level with lying stones.")]
         public float readyHeight = .12f;
-        [Tooltip("The most force a readied stone is drawn along with while it is against another stone: how hard it can shove.")]
-        [Min(0)] public float readyForce = 100;
-        [Tooltip("The fastest a readied stone moves. Above walking speed, so it keeps up; well below a throw, so catching up is not a way to hit hard.")]
-        [Min(0)] public float readySpeed = 9;
+        [Tooltip("The most force a readied stone is drawn along with: how hard it can shove what it meets.")]
+        [Min(0)] public float readyForce = 150;
+        [Tooltip("A readied stone is handled as if it weighed this fraction of its weight, so that it starts and stops with its holder and only nudges what it bumps. How hard it shoves is Ready Force.")]
+        [Range(.01f, 1)] public float readyWeight = .025f;
         [Header("Fallen stones")]
         [Tooltip("A stone this far below the board has left the stage and returns to its reserve owner's rack.")]
         [Min(1)] public float fallDepth = 10;
@@ -102,7 +102,7 @@ namespace PhysicsReversi.Walk
         {
             if (actor == null || actor.HeldStone == null || actor.HeldStone.Holder != actor) return false;
             if (!allowThrow) return TryRelease(actor);
-            actor.BeginReady(tapSeconds, readyHeight, readyForce, readySpeed); return true;
+            actor.BeginReady(tapSeconds, readyHeight, readyForce, readyWeight); return true;
         }
         // 0 to 1 while the actor's throw is charging, or -1 when letting go would just put the stone down.
         public float Charge(WalkPlayer actor)
