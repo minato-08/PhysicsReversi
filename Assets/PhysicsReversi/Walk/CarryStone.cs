@@ -109,7 +109,7 @@ namespace PhysicsReversi.Walk
         void OnCollisionExit(Collision collision) => boardContacts.Remove(collision.collider);
         void TrackBoardContact(Collision collision)
         {
-            if (collision.collider.GetComponent<RecognitionCell>() == null) return;
+            if (collision.collider.GetComponent<RecognitionCell>() == null && collision.collider.GetComponent<BoardSurface>() == null) return;
             bool supported = false;
             foreach (var contact in collision.contacts)
                 if (Vector3.Dot(contact.normal, collision.collider.transform.up) > .2f) { supported = true; break; }
