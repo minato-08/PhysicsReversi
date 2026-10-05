@@ -51,7 +51,8 @@ namespace PhysicsReversi.Walk
                 highlight.SetPropertyBlock(block);
             }
         }
-        // The stone mesh is a unit cylinder: radius .5, faces at local y = +1 and -1.
+        // The stone fits a unit cylinder: radius .5, faces at local y = +1 and -1. Its edges are
+        // slightly beveled, which this outline ignores (the difference is below a pixel or two).
         // Normals here are not for lighting: the shader reads them as "away from the stone"
         // (radial in xz, axial in y) to pull the mask inward on screen.
         void Build()

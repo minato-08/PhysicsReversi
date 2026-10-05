@@ -58,30 +58,81 @@ namespace PhysicsReversi.Editor
                 stone.twoSided = true;
             }
         }
+        // Rebuilds the shared stone mesh in place, so every stone that already uses it changes
+        // without touching the scene. Only the look changes: the collider is a separate cylinder.
+        [MenuItem("Physics Reversi/Walk/Bevel Stone Edges")]
+        public static void Bevel()
+        {
+            if (EditorApplication.isPlaying) { Debug.LogWarning("Stop Play first."); return; }
+            const string path = "Assets/PhysicsReversi/WalkAssets/TwoSidedStone.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null) { AssetDatabase.CreateAsset(BuildMesh(), path); }
+            else { Fill(mesh); EditorUtility.SetDirty(mesh); }
+            AssetDatabase.SaveAssets();
+            Debug.Log("Stone mesh rebuilt with beveled edges (" + BevelRadius + " world units). Outline and collider are unchanged.");
+        }
+        // World-space size of the rounded edge. Must stay below half the stone's thickness.
+        const float BevelRadius = .06f;
+        const int BevelSteps = 3;
+        const int Sides = 48;
         static Mesh BuildMesh()
         {
-            var vertices = new List<Vector3>(); var black = new List<int>(); var white = new List<int>();
-            const int sides = 48;
-            for (int i = 0; i < sides; i++)
-            {
-                float a = i * Mathf.PI * 2 / sides, b = (i + 1) * Mathf.PI * 2 / sides;
-                var p = new Vector3(Mathf.Cos(a) * .5f, 0, Mathf.Sin(a) * .5f);
-                var q = new Vector3(Mathf.Cos(b) * .5f, 0, Mathf.Sin(b) * .5f);
-                Triangle(vertices, black, Vector3.up, q + Vector3.up, p + Vector3.up);
-                Triangle(vertices, white, Vector3.down, p + Vector3.down, q + Vector3.down);
-                Triangle(vertices, black, p, p + Vector3.up, q + Vector3.up);
-                Triangle(vertices, black, p, q + Vector3.up, q);
-                Triangle(vertices, white, p + Vector3.down, p, q);
-                Triangle(vertices, white, p + Vector3.down, q, q + Vector3.down);
-            }
-            var mesh = new Mesh { name = "Black top - white bottom", subMeshCount = 2 };
-            mesh.SetVertices(vertices); mesh.SetTriangles(black, 0); mesh.SetTriangles(white, 1);
-            mesh.RecalculateNormals(); mesh.RecalculateBounds(); return mesh;
+            var mesh = new Mesh { name = "Black top - white bottom" };
+            Fill(mesh); return mesh;
         }
-        static void Triangle(List<Vector3> vertices, List<int> indices, Vector3 a, Vector3 b, Vector3 c)
+        // The mesh stays inside the unit cylinder (radius .5, faces at local y = +1 and -1) and
+        // still reaches its full radius on the side, so the outline seen from above is the same.
+        static void Fill(Mesh mesh)
         {
-            int start = vertices.Count; vertices.Add(a); vertices.Add(b); vertices.Add(c);
-            indices.Add(start); indices.Add(start + 1); indices.Add(start + 2);
+            // Stones are scaled unevenly (wide and thin), so the bevel is sized in world units
+            // and converted to local ones here. Scene stones take their scale from this prefab.
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/PhysicsReversi/WalkAssets/Stone.prefab");
+            Vector3 scale = prefab != null ? prefab.transform.localScale : new Vector3(2.6f, .18f, 2.6f);
+            var vertices = new List<Vector3>(); var normals = new List<Vector3>();
+            var black = new List<int>(); var white = new List<int>();
+            Half(vertices, normals, black, 1, scale);
+            Half(vertices, normals, white, -1, scale);
+            mesh.Clear(); mesh.subMeshCount = 2;
+            mesh.SetVertices(vertices); mesh.SetNormals(normals);
+            mesh.SetTriangles(black, 0); mesh.SetTriangles(white, 1);
+            mesh.RecalculateBounds();
+        }
+        // One face of the stone: flat cap, rounded edge, then the side down to the middle seam.
+        static void Half(List<Vector3> vertices, List<Vector3> normals, List<int> indices, int sign, Vector3 scale)
+        {
+            float radial = BevelRadius / scale.x, axial = BevelRadius / scale.y;
+            int center = vertices.Count, rings = BevelSteps + 2;
+            vertices.Add(new Vector3(0, sign, 0)); normals.Add(new Vector3(0, sign, 0));
+            for (int ring = 0; ring < rings; ring++)
+            {
+                // Rings 0..BevelSteps sweep the quarter circle of the bevel; the last one is the seam.
+                bool seam = ring == rings - 1;
+                float t = seam ? Mathf.PI / 2 : ring * Mathf.PI / 2 / BevelSteps;
+                float r = .5f - radial + radial * Mathf.Sin(t), y = seam ? 0 : 1 - axial + axial * Mathf.Cos(t);
+                for (int i = 0; i < Sides; i++)
+                {
+                    float a = i * Mathf.PI * 2 / Sides, x = Mathf.Cos(a), z = Mathf.Sin(a);
+                    vertices.Add(new Vector3(x * r, y * sign, z * r));
+                    // Multiplying by the scale cancels the uneven scale the renderer applies to normals.
+                    normals.Add(new Vector3(x * Mathf.Sin(t) * scale.x, Mathf.Cos(t) * sign * scale.y, z * Mathf.Sin(t) * scale.z).normalized);
+                }
+            }
+            for (int i = 0; i < Sides; i++)
+            {
+                int next = (i + 1) % Sides;
+                Triangle(indices, sign, center, center + 1 + next, center + 1 + i);
+                for (int ring = 0; ring < rings - 1; ring++)
+                {
+                    int upper = center + 1 + ring * Sides, lower = upper + Sides;
+                    Triangle(indices, sign, lower + i, upper + i, upper + next);
+                    Triangle(indices, sign, lower + i, upper + next, lower + next);
+                }
+            }
+        }
+        // The lower half is the upper half mirrored, which turns its triangles inside out.
+        static void Triangle(List<int> indices, int sign, int a, int b, int c)
+        {
+            indices.Add(a); indices.Add(sign > 0 ? b : c); indices.Add(sign > 0 ? c : b);
         }
     }
 }
