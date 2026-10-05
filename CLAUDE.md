@@ -45,7 +45,7 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
    - `StoneFaces.Owner(upDot)`: 上面方向との内積から所属を決める（黒=1 が +Y、白=2 が -Y、横倒しは 0）。`UpSign(owner)` はその逆で、ある所属の色を見せるにはローカル +Y をどちらへ向けるか。
    - `RealtimeCaptures`: 現行 Walk モードの捕獲判定。配置イベントではなく「ラインの形成」で発火し、ライン単位のラッチで同じ並びの再発火や色反転での振動を防ぐ。`Scan` は、発火した並びの両端の石（`capturingEnds`）も返す。
    - `MotionOrigin`: 石の動きの原因（プレイヤー起因か、反転演出起因か）。**プレイヤー起因の動きだけが捕獲を起こせる**。捕獲すると同一アクションで動いた石すべての原因が消費され、反転が新たな捕獲を連鎖させない。
-   - `StoneConfirmation`: 石 1 個ぶんの「確定した石」の状態。同じマスに認識され続けると確定し、そのマスから外れ続けると未確定に戻る（別のマスへ移った場合も外れた扱いで、そこで数え直す）。捕獲の反転中は状態を保つ。
+   - `StoneConfirmation`: 石 1 個ぶんの「確定した石」の状態。同じマスに認識され続けると確定し、そのマスから外れ続けると未確定に戻る（別のマスへ移った場合も外れた扱いで、そこで数え直す）。捕獲の反転中は状態を保つ。`ConfirmNow` は、時間を待たずにその場で確定させる（捕獲を起こした並びの両端に使う）。
    - `StoneHold`: 確定した石の固定の強さ。マスの中心からの距離（マス単位）から 0〜1 の強さを出し、重さの倍率に直す。
    - `StoneThrow`: 持っているときの 1 ボタンの解釈。押した長さから、置くだけ（-1）か、投げの溜め（0〜1）かを決め、溜めから投げる速さを出す。
    - `PlacementCaptures`: 配置キュー方式の旧捕獲判定（全配置を同一スナップショットで評価）。現在は `RulesChecks` からしか呼ばれない。
@@ -55,7 +55,7 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
    - `CarryAuthority`: 掴む・離す（保持と `status` の変更）はすべてここを経由する（将来のネットワーク権威の置き場所）。入力コードから直接書き換えないこと。盤上の所属 `ownerId` はここではなく認識処理が書く。床から落ちた石を予備へ戻す処理（`FixedUpdate` → `ReturnToReserve`）もここにある。掴めるのは自分の予備石と、未確定の石（色を問わない）。確定した石は掴めない。範囲は `allowPlacedStonePickup` / `allowOpponentStonePickup` / `lockConfirmedStones` の 3 スイッチで変えられる（現シーンは 3 つともオン）。判定の本体は `CarryStone.CanClaim` で、輪郭の強調も同じ判定を使う。掴んだ石は持ち主の色が上になるよう回す（`turnHeldStoneToHolderColor`。`WalkPlayer.Attach` が保持の目標姿勢をそう決め、既存の追従モーターが物理的に回す）。`allowThrow` がオンのとき（平面版のシーンだけ）、持っている間のボタンは `TryReady`（押した）と `TryRelease`（離した）の 2 つの入口になる。短く押せば置き、押し続ければ `WalkPlayer` が石を盤すれすれへ下ろし（構え）、離すと `Charge` に応じた速さで正面へ投げる。オフのときは `TryReady` がその場で置く（従来どおり）。
    - `LocalWalkInput`: 1 台・1 画面で 2 人を同時に操作する入力。`players[0]` が黒（1 台目のゲームパッド、WASD+F）、`players[1]` が白（2 台目、IJKL+H）。操作は移動方向と掴む・離すの 1 ボタンだけで、移動は固定カメラ `view` 基準。照準はなく、正面のいちばん近い掴める石（`Target(index)`）を `CarryAuthority` に渡す。ボタンは押した瞬間と離した瞬間の両方を伝えるだけで、置くか投げるかは `CarryAuthority` が決める。`AimHud` はプレイヤーごとにその石の輪郭を強調する表示専用（`WalkAssets/SilhouetteHighlight.shader` をマスク・線・塗りの3マテリアルで使い、輪郭の内側に線を描く）。カメラはスクリプトなしの固定（盤の横から見下ろし、黒が左・白が右）。持ち石は `WalkPlayer.carryPoint`（正面）に浮く。
    - `WalkPlayer` の持ち方: 石は動的な Rigidbody のまま、`carryPoint` までの水平距離（腕の長さ）を保って体の周りを回り込ませる。目標は「石のいまの方位を、手の方位へ向けて少し回した位置」で、そこへ 1 ステップで届く速度を与える（以前の「距離 × 8」の追従は、遅れが残り、体を横切った）。掴んだ直後だけは従来の追従で手元へ寄せる（`arriving`）。構えた石は `CarryStone.SetCarriedWeight` で軽くし、`readyForce` の上限つきで加速させる。軽いので動き出しが速く、当たりが柔らかく、押す強さは力の上限だけで決まる。石が阻まれて付いてこられないときは、`StayWithStone` がプレイヤーの移動を腕の長さ ± 0.4 に抑える。
-   - `CarryStone`: 石ごとの状態。`Owner Id`（上面から決まる盤上の所属）と `Reserve Owner Id`（予備石の持ち主）を別管理。`Confirmed` は確定した石かどうか（`StoneConfirmation` を 1 つ持ち、離す・予備へ戻すときにリセットする）。
+   - `CarryStone`: 石ごとの状態。`Owner Id`（上面から決まる盤上の所属）と `Reserve Owner Id`（予備石の持ち主）を別管理。`Confirmed` は確定した石かどうか（`StoneConfirmation` を 1 つ持ち、離す・予備へ戻すときにリセットする）。重さもここで決める。元の重さに、認識処理が渡す固定の強さ（`SetHold`）か、持ち主が渡す軽さ（`SetCarriedWeight`。構えている間だけ）を掛ける。`Rigidbody.mass` を外から直接書き換えないこと。
 3. **エディタセットアップ層** `Assets/PhysicsReversi/Editor/`（namespace `PhysicsReversi.Editor`）— シーン構築は手作業ではなく `Physics Reversi/Walk/...` メニューのスクリプトで行う（Scene Parts 配置、Recognition Rings、Capture Rules、Two-Sided Stones、Capture Practice、Play HUD、Second Player、Score HUD）。いずれも Play 停止中・`PhysicsReversiWalk` シーンで実行し、既存オブジェクトがあれば重複追加しない冪等な作り。例外は Bevel Stone Edges で、石のメッシュアセットをその場で作り直すだけなのでシーンを問わない（石の見た目は `TwoSidedStone.asset`、当たり判定は Unity 標準の円柱で別物）。生成アセットは `Assets/PhysicsReversi/WalkAssets/`。平面版は `Create Flat Trial Scene`（`FlatBoardSetup.cs`）が作る。お椀型のシーンを複製し、盤を床の高さへ下ろしてマスの当たり判定を外し、床に `BoardSurface`（石が盤の面に乗っていることを示す目印）を付け、摩擦を `ContactFlat` に替え、プレイヤーの当たりを細くする。シーンがすでにあれば何もしない（手で調整した値を守るため）。
 
 ### シーンの物理（ルールの前提）
@@ -68,7 +68,7 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
 - 捕獲の反転（`CarryStone.FlipBody`）は速度を直接書き換えるので、反転する石に乗り上げた石を跳ね飛ばす。
 - この結果、お椀に収まって確定した石は、掴めず（`lockConfirmedStones`）、押せず、当てられない。`SPEC.md` の「計画と実装の食い違い」に書いてある。
 - 重力は 14（標準の 9.81 ではない）。滑る石の減速は「摩擦係数 × 重力」の約 2.2 倍だった。力や速さの既定値は計算で決めず、Play で測る。
-- 平面版の試作シーンでは、盤が床の高さにあり、プレイヤーの当たりが細い（半径 0.25、`stepOffset` 0.1）ので、3 つの手段（体で押す、構えた持ち石、投げ）がどれも起こせる。
+- 平面版の試作シーンでは、盤が床の高さにあり、プレイヤーの当たりが細い（半径 0.25、`stepOffset` 0.1）ので、3 つの手段（体で押す、構えた持ち石、投げ）がどれも起こせる。値は `FlatBoardSetup.cs` がシーンに入れる（押す強さ 110、確定石の重さ最大 4 倍、`allowThrow` オン）。構えの力 150、投げの速さ 5〜20 は `CarryAuthority` の既定値。測定結果は `README.md` の「平面版で測ったこと」。
 
 ### 旧プロトタイプ
 
@@ -76,4 +76,4 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
 
 ## 未実装（README より）
 
-手番、対局終了、微振動の強制収束、通信同期（オンラインは当面の目標外）、確定した石の動きにくさ、確定した石を崩す手段（いまは成り立っていない）。黒(1)・白(2)の2人が1台のPCで同時に操作する。
+手番、対局終了、微振動の強制収束、通信同期（オンラインは当面の目標外）。確定した石の動きにくさと、確定した石を崩す手段は、平面版の試作シーンでだけ試している（お椀型のシーンでは成り立っていない）。盤の形は未決定。黒(1)・白(2)の2人が1台のPCで同時に操作する。
