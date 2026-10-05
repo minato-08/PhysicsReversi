@@ -30,11 +30,11 @@ namespace PhysicsReversi.Walk
         {
             lastScanTime = Time.time;
             previousSnapshot = new BoardRules.Snapshot();
-            if (recognition != null) recognition.SnapshotConfirmed += OnSnapshot;
+            if (recognition != null) recognition.SnapshotUpdated += OnSnapshot;
         }
         void OnDisable()
         {
-            if (recognition != null) recognition.SnapshotConfirmed -= OnSnapshot;
+            if (recognition != null) recognition.SnapshotUpdated -= OnSnapshot;
             detector.Clear(); unavailableUntil.Clear();
         }
         void Start()

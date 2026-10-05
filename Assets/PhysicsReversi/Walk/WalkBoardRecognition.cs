@@ -20,8 +20,8 @@ namespace PhysicsReversi.Walk
         [SerializeField] int whiteRecognized;
         public string RecognitionState => recognitionState;
         public BoardRules.Snapshot Snapshot { get; private set; } = new BoardRules.Snapshot();
-        public bool HasConfirmedSnapshot { get; private set; }
-        public event System.Action<BoardRules.Snapshot> SnapshotConfirmed;
+        public bool HasSnapshot { get; private set; }
+        public event System.Action<BoardRules.Snapshot> SnapshotUpdated;
         float elapsed;
         MeshFilter[] filters;
         Vector3[][] meshVertices;
@@ -50,9 +50,9 @@ namespace PhysicsReversi.Walk
             if (elapsed < Mathf.Max(.02f, updateInterval)) return;
             elapsed -= Mathf.Max(.02f, updateInterval);
             Recognize();
-            HasConfirmedSnapshot = true;
+            HasSnapshot = true;
             recognitionState = "Live";
-            SnapshotConfirmed?.Invoke(Snapshot);
+            SnapshotUpdated?.Invoke(Snapshot);
         }
         void Recognize()
         {

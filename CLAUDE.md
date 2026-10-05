@@ -43,8 +43,8 @@ asmdef はなく、すべて `Assembly-CSharp` / `Assembly-CSharp-Editor` に入
    - `MotionOrigin`: 石の動きの原因（プレイヤー起因か、反転演出起因か）。**プレイヤー起因の動きだけが捕獲を起こせる**。捕獲すると同一アクションで動いた石すべての原因が消費され、反転が新たな捕獲を連鎖させない。
    - `PlacementCaptures`: 配置キュー方式の旧捕獲判定（全配置を同一スナップショットで評価）。現在は `RulesChecks` からしか呼ばれない。
 2. **Walk 実行層** `Assets/PhysicsReversi/Walk/`（namespace `PhysicsReversi.Walk`）— シーン `Assets/Scenes/PhysicsReversiWalk.unity`。
-   - `WalkBoardRecognition`: `FixedUpdate` で一定間隔ごとに石のメッシュ頂点を盤平面へ投影し `BoardRules.Recognize` → `SnapshotConfirmed` イベント。静止判定はなく、盤に接地している `OnBoard` の石は動いていても毎回 `CarryStone.ReadUpperFace` で `ownerId` を書き換える。盤の `cellWidth`（ワールド単位）を正規化座標へ変換している。
-   - `WalkCaptureController`: `SnapshotConfirmed` を購読し `RealtimeCaptures.Scan` を実行、対象石を Rigidbody のまま物理的に180度回す（色の塗り替えや所属の強制変更はしない）。反転中の石は一時的に判定対象外。
+   - `WalkBoardRecognition`: `FixedUpdate` で一定間隔ごとに石のメッシュ頂点を盤平面へ投影し `BoardRules.Recognize` → `SnapshotUpdated` イベント。静止判定はなく、盤に接地している `OnBoard` の石は動いていても毎回 `CarryStone.ReadUpperFace` で `ownerId` を書き換える。盤の `cellWidth`（ワールド単位）を正規化座標へ変換している。
+   - `WalkCaptureController`: `SnapshotUpdated` を購読し `RealtimeCaptures.Scan` を実行、対象石を Rigidbody のまま物理的に180度回す（色の塗り替えや所属の強制変更はしない）。反転中の石は一時的に判定対象外。
    - `CarryAuthority`: 掴む・離す（保持と `status` の変更）はすべてここを経由する（将来のネットワーク権威の置き場所）。入力コードから直接書き換えないこと。盤上の所属 `ownerId` はここではなく認識処理が書く。床から落ちた石を予備へ戻す処理（`FixedUpdate` → `ReturnToReserve`）もここにある。掴める石の範囲は未確定で、`allowPlacedStonePickup` / `allowOpponentStonePickup` を Inspector で切り替えて試している（現シーンは両方オン）。
    - `LocalWalkInput`: 1 台・1 画面で 2 人を同時に操作する入力。`players[0]` が黒（1 台目のゲームパッド、WASD+F）、`players[1]` が白（2 台目、IJKL+H）。操作は移動方向と掴む・離すの 1 ボタンだけで、移動は固定カメラ `view` 基準。照準はなく、正面のいちばん近い掴める石（`Target(index)`）を `CarryAuthority` に渡す。`AimHud` はプレイヤーごとにその石の輪郭を強調する表示専用（`WalkAssets/SilhouetteHighlight.shader` をマスク・線・塗りの3マテリアルで使い、輪郭の内側に線を描く）。カメラはスクリプトなしの固定（盤の横から見下ろし、黒が左・白が右）。持ち石は `WalkPlayer.carryPoint`（正面）に浮く。
    - `CarryStone`: 石ごとの状態。`Owner Id`（上面から決まる盤上の所属）と `Reserve Owner Id`（予備石の持ち主）を別管理。
