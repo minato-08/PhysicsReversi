@@ -2659,7 +2659,8 @@ MonoBehaviour:
   minThrowSpeed: 5
   maxThrowSpeed: 20
   readyHeight: 0.12
-  readyForce: 100
+  readyForce: 150
+  readyWeight: 0.025
   fallDepth: 10
   slotClearance: 1.5
 --- !u!114 &266304605
@@ -2843,6 +2844,7 @@ MonoBehaviour:
   captureAxis: {x: 1, y: 0, z: 0}
   lineBreakSeconds: 0.15
   flipReleaseGrace: 0.2
+  confirmCapturingStones: 1
   lastResult: Waiting for a placement
   lastCaptureCount: 0
 --- !u!1001 &271095396
@@ -12735,7 +12737,7 @@ MonoBehaviour:
   carryPoint: {fileID: 923840667}
   moveSpeed: 6
   turnSpeed: 540
-  pushStrength: 70
+  pushStrength: 110
   carryFollowSpeed: 8
   maxCarrySpeed: 12
 --- !u!143 &1380288140
@@ -15536,7 +15538,7 @@ MonoBehaviour:
   carryPoint: {fileID: 618866132}
   moveSpeed: 6
   turnSpeed: 540
-  pushStrength: 70
+  pushStrength: 110
   carryFollowSpeed: 8
   maxCarrySpeed: 12
 --- !u!143 &1610185262

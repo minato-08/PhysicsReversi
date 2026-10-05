@@ -36,14 +36,19 @@ namespace PhysicsReversi.Walk
         public void ConfirmAt(int cell) { if (status == StoneStatus.OnBoard) confirmation.ConfirmNow(cell); }
         // How firmly the stone is held in its cell, 0 to 1. Held stones are heavier, and so harder to shove.
         public float Hold { get; private set; }
-        float baseMass;
+        float baseMass, holdFactor = 1, carriedWeight = 1;
         // Called by the board recognition only, after TickConfirmation.
         public void SetHold(float strength, float multiplier)
         {
-            Hold = strength;
-            float mass = baseMass * (float)StoneHold.MassFactor(strength, multiplier);
-            if (!Mathf.Approximately(Body.mass, mass)) Body.mass = mass;
+            Hold = strength; holdFactor = (float)StoneHold.MassFactor(strength, multiplier); ApplyMass();
             if (Confirmed && multiplier > 1) recognition += ", hold " + Mathf.RoundToInt(strength * 100) + "%";
+        }
+        // Called by the holder only: a readied stone is handled as a lighter thing (see WalkPlayer). 1 is its own weight.
+        public void SetCarriedWeight(float scale) { carriedWeight = scale; ApplyMass(); }
+        void ApplyMass()
+        {
+            float mass = baseMass * (carriedWeight != 1 ? carriedWeight : holdFactor);
+            if (!Mathf.Approximately(Body.mass, mass)) Body.mass = mass;
         }
         public void ReadUpperFace(Vector3 boardUp, float tolerance)
         {
@@ -82,10 +87,6 @@ namespace PhysicsReversi.Walk
             IsFlipping = false;
         }
         readonly HashSet<Collider> boardContacts = new HashSet<Collider>();
-        // Against another stone now, or a moment ago. The memory outlasts the rebound after a hit,
-        // so a readied stone cannot get its full drive back between one bump and the next.
-        public bool TouchingStone => Time.time - stoneTouchTime < .4f;
-        float stoneTouchTime = -1;
         [SerializeField] string recognition = "Not checked";
         public bool TouchingBoard => boardContacts.Count > 0;
         public void SetRecognition(string value) => recognition = value;
@@ -113,9 +114,7 @@ namespace PhysicsReversi.Walk
         void TrackMotion(Collision collision)
         {
             var other = collision.collider.GetComponentInParent<CarryStone>();
-            if (other == null || other == this) return;
-            stoneTouchTime = Time.time;
-            if (collision.relativeVelocity.sqrMagnitude < .0064f) return;
+            if (other == null || other == this || collision.relativeVelocity.sqrMagnitude < .0064f) return;
             // A moving carried stone is also a deliberate tool for pushing another stone.
             if (Holder != null && Holder.HasManipulationInput && !IsFlipping) RegisterPlayerMotion();
             if (other.Holder != null && other.Holder.HasManipulationInput && !other.IsFlipping) other.RegisterPlayerMotion();

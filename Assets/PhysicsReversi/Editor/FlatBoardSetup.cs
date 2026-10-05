@@ -70,7 +70,7 @@ namespace PhysicsReversi.Editor
             {
                 var controller = player.GetComponent<CharacterController>();
                 controller.radius = .25f; controller.stepOffset = .1f;
-                player.pushStrength = 70;
+                player.pushStrength = 110;
             }
 
             // The one-button ready stance and throw are tried here only; the bowl-cell scene keeps the plain drop.

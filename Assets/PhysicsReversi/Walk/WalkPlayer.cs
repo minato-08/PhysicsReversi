@@ -19,13 +19,20 @@ namespace PhysicsReversi.Walk
         // lowered to just above the board in front, level with lying stones, and a throw charges.
         public bool IsReady => readySince >= 0;
         public float ReadySeconds => readySince < 0 ? 0 : Time.time - readySince;
-        float readySince = -1, readyDelay, readyHeight, readyForce, readySpeed;
+        float readySince = -1, readyDelay, readyHeight, readyForce, readyWeight;
         // Called by CarryAuthority only.
-        public void BeginReady(float delaySeconds, float height, float maxForce, float maxSpeed)
+        public void BeginReady(float delaySeconds, float height, float maxForce, float weight)
         {
             if (HeldStone == null || IsReady) return;
-            readySince = Time.time; readyDelay = delaySeconds; readyHeight = height; readyForce = maxForce; readySpeed = maxSpeed;
+            readySince = Time.time; readyDelay = delaySeconds; readyHeight = height; readyForce = maxForce; readyWeight = weight;
         }
+        // Just picked up, the stone is still on its way to the hand.
+        bool arriving;
+        // How far the stone may be from the hand before the holder is held back, and how
+        // close a picked-up stone comes before it counts as in the hand.
+        const float HoldSlack = .4f, ArriveDistance = .15f;
+        // Faster than any swing of the arm, slow enough that a stone never jumps through things.
+        const float MaxHoldSpeed = 40;
         CharacterController controller;
         Vector3 movement;
         float verticalSpeed;
@@ -39,38 +46,73 @@ namespace PhysicsReversi.Walk
         {
             if (controller.isGrounded && verticalSpeed < 0) verticalSpeed = -2;
             verticalSpeed += Physics.gravity.y * Time.deltaTime;
-            controller.Move((movement * moveSpeed + Vector3.up * verticalSpeed) * Time.deltaTime);
+            Vector3 step = (movement * moveSpeed + Vector3.up * verticalSpeed) * Time.deltaTime;
+            if (HeldStone != null && carryPoint != null && !arriving) step = StayWithStone(step);
+            controller.Move(step);
             if (movement.sqrMagnitude > .001f)
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(movement), turnSpeed * Time.deltaTime);
+        }
+        // The hold is rigid both ways: the holder cannot walk into a stone that will not give
+        // way, nor away from one that cannot follow.
+        Vector3 StayWithStone(Vector3 step)
+        {
+            Vector3 hand = carryPoint.position - transform.position; hand.y = 0;
+            Vector3 toStone = HeldStone.Body.position - (transform.position + step); toStone.y = 0;
+            float reach = hand.magnitude, distance = toStone.magnitude;
+            if (distance < .001f) return step;
+            Vector3 along = toStone / distance;
+            float closing = Vector3.Dot(step, along);
+            if (distance < reach - HoldSlack && closing > 0) step -= along * Mathf.Min(closing, reach - HoldSlack - distance);
+            else if (distance > reach + HoldSlack && closing < 0) step -= along * Mathf.Max(closing, reach + HoldSlack - distance);
+            return step;
         }
         void FixedUpdate()
         {
             if (HeldStone == null || carryPoint == null) return;
-            // The stone is held at the carry point in front of the character and dropped from there.
             // Dynamic body keeps collision response while carried; no parenting/teleport.
             var body = HeldStone.Body;
-            Vector3 target = carryPoint.position;
             bool lowered = IsReady && ReadySeconds >= readyDelay;
-            if (lowered) target.y = transform.position.y + readyHeight;
-            // A lowered stone is kept below full carry speed: left behind, it would otherwise
-            // catch up fast enough to ram like a throw.
-            float limit = lowered ? Mathf.Min(maxCarrySpeed, readySpeed) : maxCarrySpeed;
-            Vector3 wanted = Vector3.ClampMagnitude((target - body.position) * carryFollowSpeed, limit);
-            // Free of other stones it follows as briskly as a carried one. Against a stone it is
-            // drawn along by a limited force instead, so how hard it shoves is a setting rather
-            // than whatever it takes. It does not rest on the board: its own friction would use
-            // up that force.
-            if (lowered && HeldStone.TouchingStone)
-                body.linearVelocity += Vector3.ClampMagnitude(wanted - body.linearVelocity, readyForce / body.mass * Time.fixedDeltaTime);
+            HeldStone.SetCarriedWeight(lowered ? readyWeight : 1);
+            // The stone is held at arm's length: where the carry point is, in front of the holder,
+            // or lowered from there to just above the board. It is swung round the holder toward
+            // that side, keeping its distance, so it never cuts across the holder's body to get
+            // there. It swings faster than the holder turns, or it could never make up a lag.
+            Vector3 hand = carryPoint.position - transform.position;
+            float height = lowered ? readyHeight : hand.y; hand.y = 0;
+            float reach = hand.magnitude;
+            Vector3 front = reach > .001f ? hand / reach : transform.forward;
+            Vector3 bearing = body.position - transform.position; bearing.y = 0;
+            bearing = bearing.sqrMagnitude > .01f ? bearing.normalized : front;
+            float swing = turnSpeed * 2 * Time.fixedDeltaTime;
+            bearing = Quaternion.AngleAxis(Mathf.Clamp(Vector3.SignedAngle(bearing, front, Vector3.up), -swing, swing), Vector3.up) * bearing;
+            Vector3 error = transform.position + bearing * reach + Vector3.up * height - body.position;
+            Vector3 wanted;
+            if (arriving)
+            {
+                // Just picked up: the stone comes to the hand at its own pace.
+                wanted = Vector3.ClampMagnitude(error * carryFollowSpeed, maxCarrySpeed);
+                arriving = error.magnitude > ArriveDistance;
+            }
+            // In the hand it is held firmly: where the hand goes, the stone goes at once.
+            else wanted = Vector3.ClampMagnitude(error / Time.fixedDeltaTime, MaxHoldSpeed);
+            if (lowered)
+            {
+                // Lowered, it is handled as a light thing drawn by a limited force. Being light it
+                // starts and stops with its holder and only nudges what it bumps; the force is
+                // then all there is to how hard it shoves. It never comes in faster than it can stop.
+                float push = readyForce / body.mass;
+                wanted = Vector3.ClampMagnitude(wanted, Mathf.Sqrt(2 * push * error.magnitude));
+                body.linearVelocity += Vector3.ClampMagnitude(wanted - body.linearVelocity, push * Time.fixedDeltaTime);
+            }
             else body.linearVelocity = wanted;
-            Quaternion error = carryPoint.rotation * carryRotationOffset * Quaternion.Inverse(body.rotation);
-            error.ToAngleAxis(out float degrees, out Vector3 axis);
+            Quaternion turn = carryPoint.rotation * carryRotationOffset * Quaternion.Inverse(body.rotation);
+            turn.ToAngleAxis(out float degrees, out Vector3 axis);
             if (degrees > 180) degrees -= 360;
             if (axis.sqrMagnitude > .001f && !float.IsNaN(axis.x)) body.angularVelocity = axis * Mathf.Clamp(degrees * Mathf.Deg2Rad * 5, -6, 6);
         }
         public void Attach(CarryStone stone, bool showOwnColor = false)
         {
-            HeldStone = stone; readySince = -1;
+            HeldStone = stone; readySince = -1; arriving = true;
             // Carried level with the holder's own color up, or just as it was picked up.
             Quaternion carried = showOwnColor
                 ? Quaternion.FromToRotation(stone.transform.up, Vector3.up * StoneFaces.UpSign(playerId)) * stone.Body.rotation
@@ -89,6 +131,7 @@ namespace PhysicsReversi.Walk
             if (HeldStone == null) return;
             var stone = HeldStone;
             stone.Body.useGravity = true; stone.Body.linearDamping = oldDamping; stone.Body.angularDamping = oldAngularDamping;
+            stone.SetCarriedWeight(1);
             stone.Body.linearVelocity = velocity;
             stone.Body.angularVelocity = Vector3.zero;
             foreach (var shape in heldColliders) if (shape != null) Physics.IgnoreCollision(controller, shape, false);
