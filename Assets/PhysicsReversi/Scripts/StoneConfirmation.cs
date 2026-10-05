@@ -10,6 +10,8 @@ namespace PhysicsReversi
         // Unconfirmed: time recognized in Cell. Confirmed: time spent out of Cell.
         double seconds;
         public void Reset() { Confirmed = false; Cell = -1; seconds = 0; }
+        // Committed at once, without the wait: the stone has just made a capture from this cell.
+        public void ConfirmNow(int cell) { if (cell < 0) return; Confirmed = true; Cell = cell; seconds = 0; }
         // cell is where the stone is recognized now, or -1. A frozen stone (mid capture flip) keeps its state.
         public void Tick(int cell, bool frozen, double deltaSeconds, double confirmSeconds, double loosenSeconds)
         {

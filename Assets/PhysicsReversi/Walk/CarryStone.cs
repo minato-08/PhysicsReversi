@@ -32,6 +32,8 @@ namespace PhysicsReversi.Walk
             else confirmation.Tick(cell, IsFlipping, deltaSeconds, confirmSeconds, loosenSeconds);
             if (Confirmed) recognition += " / confirmed";
         }
+        // Called by the capture controller only: a stone at the end of a line that captured is committed on the spot.
+        public void ConfirmAt(int cell) { if (status == StoneStatus.OnBoard) confirmation.ConfirmNow(cell); }
         // How firmly the stone is held in its cell, 0 to 1. Held stones are heavier, and so harder to shove.
         public float Hold { get; private set; }
         float baseMass;

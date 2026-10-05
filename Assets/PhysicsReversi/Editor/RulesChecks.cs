@@ -191,6 +191,23 @@ namespace PhysicsReversi
             Check(flipped.Confirmed, "confirmed stone stays confirmed through a capture flip"); checks++;
             flipped.Reset();
             Check(!flipped.Confirmed && flipped.Cell == -1, "released or returned stone starts unconfirmed"); checks++;
+            // A stone that makes a capture is committed on the spot, without the wait.
+            var committed = new StoneConfirmation();
+            committed.Tick(27, false, .05, 1.5, .5); committed.ConfirmNow(27);
+            Check(committed.Confirmed && committed.Cell == 27, "a stone that captures is confirmed at once"); checks++;
+            committed.Tick(27, false, 5, 1.5, .5); committed.Tick(-1, false, .25, 1.5, .5);
+            Check(committed.Confirmed, "a stone confirmed by capturing rides out a brief dropout like any other"); checks++;
+            committed.Tick(-1, false, .25, 1.5, .5);
+            Check(!committed.Confirmed, "a stone confirmed by capturing still comes loose when knocked out of its cell"); checks++;
+            live.Clear(); b = new BoardRules.Snapshot();
+            b.Ids[0] = 10; b.Owners[0] = 1; b.Ids[1] = 11; b.Owners[1] = 2; b.Ids[2] = 12; b.Owners[2] = 1;
+            var ends = new HashSet<int>();
+            liveTargets = live.Scan(b, free, .05, .15, null, null, ends);
+            Check(liveTargets.Count == 1 && liveTargets[0] == 11 && ends.Count == 2 && ends.Contains(10) && ends.Contains(12),
+                "both ends of a capturing line are reported, and not the stone it flips"); checks++;
+            ends.Clear();
+            Check(live.Scan(b, free, .05, .15, null, null, ends).Count == 0 && ends.Count == 0,
+                "a line that has already captured reports no ends again"); checks++;
             // One button while carrying: a tap of .2 seconds, then 1 second to charge from speed 5 to 14.
             Check(StoneThrow.Charge(.1, .2, 1) < 0, "a short press puts the stone down instead of throwing it"); checks++;
             Check(StoneThrow.Charge(.2, .2, 1) == 0 && StoneThrow.Speed(0, 5, 14) == 5, "a press just past a tap throws at the lowest speed"); checks++;
