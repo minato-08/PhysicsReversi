@@ -64,15 +64,19 @@ namespace PhysicsReversi.Editor
             }
 
             // A player this narrow, climbing steps this low, pushes a lying stone instead of
-            // walking up onto it (measured on the flat floor; see README).
+            // walking up onto it (measured on the flat floor; see README). The push is raised to
+            // where it moves a stone that is not held, and no more: the weakest way to shove.
             foreach (var player in root.GetComponentsInChildren<WalkPlayer>(true))
             {
                 var controller = player.GetComponent<CharacterController>();
                 controller.radius = .25f; controller.stepOffset = .1f;
+                player.pushStrength = 70;
             }
 
             // The one-button ready stance and throw are tried here only; the bowl-cell scene keeps the plain drop.
             foreach (var authority in root.GetComponentsInChildren<CarryAuthority>(true)) authority.allowThrow = true;
+            // Confirmed stones are held more firmly the better they are centered; tried here only.
+            foreach (var recognition in root.GetComponentsInChildren<WalkBoardRecognition>(true)) recognition.holdMultiplier = 4;
 
             EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
             Debug.Log("Flat trial scene created and opened: " + Target + ". The walk scene with bowl cells is unchanged.");

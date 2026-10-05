@@ -26,11 +26,11 @@ namespace PhysicsReversi.Walk
         [Tooltip("Throw speed with no charge.")]
         [Min(0)] public float minThrowSpeed = 5;
         [Tooltip("Throw speed with a full charge.")]
-        [Min(0)] public float maxThrowSpeed = 14;
+        [Min(0)] public float maxThrowSpeed = 20;
         [Tooltip("Height of a readied stone's center above its holder's position. The default leaves it just clear of the ground, level with lying stones.")]
         public float readyHeight = .12f;
         [Tooltip("The most force a readied stone is drawn along with: how hard it can shove what it meets.")]
-        [Min(0)] public float readyForce = 150;
+        [Min(0)] public float readyForce = 100;
         [Header("Fallen stones")]
         [Tooltip("A stone this far below the board has left the stage and returns to its reserve owner's rack.")]
         [Min(1)] public float fallDepth = 10;

@@ -32,6 +32,17 @@ namespace PhysicsReversi.Walk
             else confirmation.Tick(cell, IsFlipping, deltaSeconds, confirmSeconds, loosenSeconds);
             if (Confirmed) recognition += " / confirmed";
         }
+        // How firmly the stone is held in its cell, 0 to 1. Held stones are heavier, and so harder to shove.
+        public float Hold { get; private set; }
+        float baseMass;
+        // Called by the board recognition only, after TickConfirmation.
+        public void SetHold(float strength, float multiplier)
+        {
+            Hold = strength;
+            float mass = baseMass * (float)StoneHold.MassFactor(strength, multiplier);
+            if (!Mathf.Approximately(Body.mass, mass)) Body.mass = mass;
+            if (Confirmed && multiplier > 1) recognition += ", hold " + Mathf.RoundToInt(strength * 100) + "%";
+        }
         public void ReadUpperFace(Vector3 boardUp, float tolerance)
         {
             if (status == StoneStatus.OnBoard) ownerId = StoneFaces.Owner(Vector3.Dot(transform.up, boardUp), tolerance);
@@ -78,7 +89,7 @@ namespace PhysicsReversi.Walk
         public bool HasReserveSlot { get; private set; }
         void Awake()
         {
-            Body = GetComponent<Rigidbody>();
+            Body = GetComponent<Rigidbody>(); baseMass = Body.mass;
             HomePosition = transform.position; HomeRotation = transform.rotation;
             HasReserveSlot = status == StoneStatus.Reserve;
         }

@@ -2657,9 +2657,9 @@ MonoBehaviour:
   tapSeconds: 0.2
   chargeSeconds: 1.2
   minThrowSpeed: 5
-  maxThrowSpeed: 14
+  maxThrowSpeed: 20
   readyHeight: 0.12
-  readyForce: 150
+  readyForce: 100
   fallDepth: 10
   slotClearance: 1.5
 --- !u!114 &266304605
@@ -2814,6 +2814,9 @@ MonoBehaviour:
   edgeFaceTolerance: 0.1
   confirmSeconds: 1.5
   loosenSeconds: 0.5
+  holdMultiplier: 4
+  fullHoldDistance: 0.1
+  zeroHoldDistance: 0.45
   confirmedMark: {r: 0.82, g: 0.95, b: 0.9, a: 1}
   recognitionState: Waiting
   blackRecognized: 0
@@ -12732,7 +12735,7 @@ MonoBehaviour:
   carryPoint: {fileID: 923840667}
   moveSpeed: 6
   turnSpeed: 540
-  pushStrength: 35
+  pushStrength: 70
   carryFollowSpeed: 8
   maxCarrySpeed: 12
 --- !u!143 &1380288140
@@ -15533,7 +15536,7 @@ MonoBehaviour:
   carryPoint: {fileID: 618866132}
   moveSpeed: 6
   turnSpeed: 540
-  pushStrength: 35
+  pushStrength: 70
   carryFollowSpeed: 8
   maxCarrySpeed: 12
 --- !u!143 &1610185262

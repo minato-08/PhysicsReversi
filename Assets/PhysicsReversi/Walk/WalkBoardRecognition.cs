@@ -19,6 +19,12 @@ namespace PhysicsReversi.Walk
         [Min(0)] public float confirmSeconds = 1.5f;
         [Tooltip("A confirmed stone out of its cell for this long comes loose again. Shorter dropouts are ignored.")]
         [Min(0)] public float loosenSeconds = .5f;
+        [Tooltip("A confirmed stone at the center of its cell weighs this many times as much, and so is harder to shove. 1 turns the hold off.")]
+        [Min(1)] public float holdMultiplier = 1;
+        [Tooltip("Within this distance of the cell's center, in cells, a confirmed stone is held fully.")]
+        [Range(0, .5f)] public float fullHoldDistance = .1f;
+        [Tooltip("At this distance from the cell's center, in cells, a confirmed stone is not held at all. The middle of an edge is at .5.")]
+        [Range(0, .75f)] public float zeroHoldDistance = .45f;
         [Tooltip("Color of the corner marks around a confirmed stone. Other recognized cells keep the mark material's own color.")]
         public Color confirmedMark = new Color(.82f, .95f, .9f, 1);
         [Header("Current board")]
@@ -110,6 +116,14 @@ namespace PhysicsReversi.Walk
                 var stone = stones[i]; if (stone == null) continue;
                 stone.TickConfirmation(System.Array.IndexOf(Snapshot.Ids, i), deltaSeconds, confirmSeconds, loosenSeconds);
                 if (stone.Confirmed) confirmedStones++;
+                // The better a confirmed stone is centered in its cell, the more firmly it is held.
+                float hold = 0;
+                if (stone.Confirmed && holdMultiplier > 1)
+                {
+                    Vector3 local = boardOrigin.InverseTransformPoint(stone.transform.position) / cellWidth;
+                    hold = (float)StoneHold.Strength(StoneHold.CenterDistance(local.x, local.z, stone.ConfirmedCell), fullHoldDistance, zeroHoldDistance);
+                }
+                stone.SetHold(hold, holdMultiplier);
             }
             // The marks of a cell deepen once its stone is confirmed there.
             if (confirmedLook == null) confirmedLook = new MaterialPropertyBlock();

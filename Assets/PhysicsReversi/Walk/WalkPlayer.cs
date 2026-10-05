@@ -52,10 +52,13 @@ namespace PhysicsReversi.Walk
             Vector3 target = carryPoint.position;
             bool lowered = IsReady && ReadySeconds >= readyDelay;
             if (lowered) target.y = transform.position.y + readyHeight;
-            Vector3 wanted = Vector3.ClampMagnitude((target - body.position) * carryFollowSpeed, maxCarrySpeed);
-            // A lowered stone is drawn along by a limited force, so how hard it shoves what it
-            // meets is a setting rather than whatever it takes. It does not rest on the board:
-            // its own friction would use up that force.
+            // A lowered stone keeps up with its holder but does not race ahead of a walk: left
+            // behind, it would otherwise catch up at full carry speed and ram like a throw.
+            float limit = lowered ? Mathf.Min(maxCarrySpeed, moveSpeed * 1.25f) : maxCarrySpeed;
+            Vector3 wanted = Vector3.ClampMagnitude((target - body.position) * carryFollowSpeed, limit);
+            // It is drawn along by a limited force, so how hard it shoves what it meets is a
+            // setting rather than whatever it takes. It does not rest on the board: its own
+            // friction would use up that force.
             if (lowered) body.linearVelocity += Vector3.ClampMagnitude(wanted - body.linearVelocity, readyForce / body.mass * Time.fixedDeltaTime);
             else body.linearVelocity = wanted;
             Quaternion error = carryPoint.rotation * carryRotationOffset * Quaternion.Inverse(body.rotation);

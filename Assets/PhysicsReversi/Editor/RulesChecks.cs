@@ -197,6 +197,16 @@ namespace PhysicsReversi
             Check(Math.Abs(StoneThrow.Charge(.7, .2, 1) - .5) < 1e-9 && Math.Abs(StoneThrow.Speed(.5, 5, 14) - 9.5) < 1e-9,
                 "throw speed grows with the time held"); checks++;
             Check(StoneThrow.Charge(9, .2, 1) == 1 && StoneThrow.Speed(1, 5, 14) == 14, "a full charge does not grow further"); checks++;
+            // Hold: full within .1 cells of the center of the stone's cell, none from .45 out. Cell 27 is centered on (-.5, -.5).
+            Check(Math.Abs(StoneHold.CenterDistance(-.5, -.5, 27)) < 1e-9 && Math.Abs(StoneHold.CenterDistance(-.2, -.5, 27) - .3) < 1e-9,
+                "distance is measured from the center of the stone's own cell"); checks++;
+            Check(StoneHold.Strength(0, .1, .45) == 1 && StoneHold.Strength(.1, .1, .45) == 1, "a well-centered stone is held fully"); checks++;
+            Check(StoneHold.Strength(.45, .1, .45) == 0 && StoneHold.Strength(.6, .1, .45) == 0, "a stone at the edge of its cell is not held"); checks++;
+            double halfway = StoneHold.Strength(.275, .1, .45);
+            Check(Math.Abs(halfway - .5) < 1e-9 && StoneHold.Strength(.2, .1, .45) > halfway && StoneHold.Strength(.35, .1, .45) < halfway,
+                "hold falls off smoothly with distance from the center"); checks++;
+            Check(StoneHold.MassFactor(0, 4) == 1 && StoneHold.MassFactor(1, 4) == 4 && StoneHold.MassFactor(.5, 4) == 2.5,
+                "hold makes a stone heavier, up to the multiplier"); checks++;
             return checks;
         }
     }
