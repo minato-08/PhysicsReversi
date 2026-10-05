@@ -116,16 +116,18 @@ namespace PhysicsReversi.Walk
         }
         void OnDisable() { StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); confirmation.Reset(); }
         // The pickup rule without side effects; the aim highlight asks the same question.
-        public bool CanClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false)
+        public bool CanClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false, bool lockConfirmed = false)
         {
             if (player == null || !isActiveAndEnabled || Body == null || Holder != null || IsFlipping) return false;
             if (status == StoneStatus.Reserve) return reserveOwnerId == player.playerId;
-            if (status == StoneStatus.OnBoard) return allowPlaced && (allowOpponent || ownerId == player.playerId);
+            // A confirmed stone has to be knocked out of its cell before anyone can pick it up.
+            if (status == StoneStatus.OnBoard)
+                return allowPlaced && (allowOpponent || ownerId == player.playerId) && !(lockConfirmed && Confirmed);
             return false;
         }
-        public bool TryClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false)
+        public bool TryClaim(WalkPlayer player, bool allowPlaced = false, bool allowOpponent = false, bool lockConfirmed = false)
         {
-            if (!CanClaim(player, allowPlaced, allowOpponent)) return false;
+            if (!CanClaim(player, allowPlaced, allowOpponent, lockConfirmed)) return false;
             Holder = player; status = StoneStatus.Held; Body.WakeUp(); return true;
         }
         public void Release()

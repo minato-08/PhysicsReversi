@@ -12,6 +12,8 @@ namespace PhysicsReversi.Walk
         public bool allowPlacedStonePickup;
         [Tooltip("When placed-stone pickup is enabled, also allow other colors. Opponent reserves remain protected.")]
         public bool allowOpponentStonePickup;
+        [Tooltip("Confirmed stones cannot be picked up; they have to be knocked out of their cell first.")]
+        public bool lockConfirmedStones = true;
         [Header("Fallen stones")]
         [Tooltip("A stone this far below the board has left the stage and returns to its reserve owner's rack.")]
         [Min(1)] public float fallDepth = 10;
@@ -61,7 +63,7 @@ namespace PhysicsReversi.Walk
         // Read-only preview of TryGrab for aiming feedback.
         public bool CanGrab(WalkPlayer actor, CarryStone stone)
             => InReach(actor, stone) && actor.HeldStone == null && actor.isActiveAndEnabled &&
-               stone.CanClaim(actor, allowPlacedStonePickup, allowOpponentStonePickup);
+               stone.CanClaim(actor, allowPlacedStonePickup, allowOpponentStonePickup, lockConfirmedStones);
         public bool TryGrab(WalkPlayer actor, CarryStone stone)
         {
             if (actor == null || stone == null || actor.HeldStone != null || !actor.isActiveAndEnabled) return false;
@@ -72,7 +74,7 @@ namespace PhysicsReversi.Walk
                 stone.ReadUpperFace(board != null && board.boardOrigin != null ? board.boardOrigin.up : Vector3.up,
                     board != null ? board.edgeFaceTolerance : .1f);
             }
-            if (!stone.TryClaim(actor, allowPlacedStonePickup, allowOpponentStonePickup)) return false;
+            if (!stone.TryClaim(actor, allowPlacedStonePickup, allowOpponentStonePickup, lockConfirmedStones)) return false;
             actor.Attach(stone); return true;
         }
         public bool TryRelease(WalkPlayer actor)
