@@ -19,12 +19,12 @@ namespace PhysicsReversi.Walk
         // lowered to just above the board in front, level with lying stones, and a throw charges.
         public bool IsReady => readySince >= 0;
         public float ReadySeconds => readySince < 0 ? 0 : Time.time - readySince;
-        float readySince = -1, readyDelay, readyHeight, readyForce;
+        float readySince = -1, readyDelay, readyHeight, readyForce, readySpeed;
         // Called by CarryAuthority only.
-        public void BeginReady(float delaySeconds, float height, float maxForce)
+        public void BeginReady(float delaySeconds, float height, float maxForce, float maxSpeed)
         {
             if (HeldStone == null || IsReady) return;
-            readySince = Time.time; readyDelay = delaySeconds; readyHeight = height; readyForce = maxForce;
+            readySince = Time.time; readyDelay = delaySeconds; readyHeight = height; readyForce = maxForce; readySpeed = maxSpeed;
         }
         CharacterController controller;
         Vector3 movement;
@@ -52,14 +52,16 @@ namespace PhysicsReversi.Walk
             Vector3 target = carryPoint.position;
             bool lowered = IsReady && ReadySeconds >= readyDelay;
             if (lowered) target.y = transform.position.y + readyHeight;
-            // A lowered stone keeps up with its holder but does not race ahead of a walk: left
-            // behind, it would otherwise catch up at full carry speed and ram like a throw.
-            float limit = lowered ? Mathf.Min(maxCarrySpeed, moveSpeed * 1.25f) : maxCarrySpeed;
+            // A lowered stone is kept below full carry speed: left behind, it would otherwise
+            // catch up fast enough to ram like a throw.
+            float limit = lowered ? Mathf.Min(maxCarrySpeed, readySpeed) : maxCarrySpeed;
             Vector3 wanted = Vector3.ClampMagnitude((target - body.position) * carryFollowSpeed, limit);
-            // It is drawn along by a limited force, so how hard it shoves what it meets is a
-            // setting rather than whatever it takes. It does not rest on the board: its own
-            // friction would use up that force.
-            if (lowered) body.linearVelocity += Vector3.ClampMagnitude(wanted - body.linearVelocity, readyForce / body.mass * Time.fixedDeltaTime);
+            // Free of other stones it follows as briskly as a carried one. Against a stone it is
+            // drawn along by a limited force instead, so how hard it shoves is a setting rather
+            // than whatever it takes. It does not rest on the board: its own friction would use
+            // up that force.
+            if (lowered && HeldStone.TouchingStone)
+                body.linearVelocity += Vector3.ClampMagnitude(wanted - body.linearVelocity, readyForce / body.mass * Time.fixedDeltaTime);
             else body.linearVelocity = wanted;
             Quaternion error = carryPoint.rotation * carryRotationOffset * Quaternion.Inverse(body.rotation);
             error.ToAngleAxis(out float degrees, out Vector3 axis);

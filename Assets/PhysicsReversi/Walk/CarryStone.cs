@@ -80,6 +80,10 @@ namespace PhysicsReversi.Walk
             IsFlipping = false;
         }
         readonly HashSet<Collider> boardContacts = new HashSet<Collider>();
+        // Against another stone now, or a moment ago. The memory outlasts the rebound after a hit,
+        // so a readied stone cannot get its full drive back between one bump and the next.
+        public bool TouchingStone => Time.time - stoneTouchTime < .4f;
+        float stoneTouchTime = -1;
         [SerializeField] string recognition = "Not checked";
         public bool TouchingBoard => boardContacts.Count > 0;
         public void SetRecognition(string value) => recognition = value;
@@ -107,7 +111,9 @@ namespace PhysicsReversi.Walk
         void TrackMotion(Collision collision)
         {
             var other = collision.collider.GetComponentInParent<CarryStone>();
-            if (other == null || other == this || collision.relativeVelocity.sqrMagnitude < .0064f) return;
+            if (other == null || other == this) return;
+            stoneTouchTime = Time.time;
+            if (collision.relativeVelocity.sqrMagnitude < .0064f) return;
             // A moving carried stone is also a deliberate tool for pushing another stone.
             if (Holder != null && Holder.HasManipulationInput && !IsFlipping) RegisterPlayerMotion();
             if (other.Holder != null && other.Holder.HasManipulationInput && !other.IsFlipping) other.RegisterPlayerMotion();
