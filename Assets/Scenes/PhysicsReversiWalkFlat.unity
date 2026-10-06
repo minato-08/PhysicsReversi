@@ -2580,6 +2580,7 @@ Transform:
   - {fileID: 1610185260}
   - {fileID: 1635827326}
   - {fileID: 1113718749}
+  - {fileID: 1663287071}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &266304601
@@ -2814,6 +2815,7 @@ MonoBehaviour:
   boundaryTolerance: 0.03
   edgeFaceTolerance: 0.1
   confirmSeconds: 1.5
+  confirmByTime: 0
   loosenSeconds: 0.5
   holdMultiplier: 4
   fullHoldDistance: 0.1
@@ -2844,6 +2846,7 @@ MonoBehaviour:
   captureAxis: {x: 1, y: 0, z: 0}
   lineBreakSeconds: 0.15
   flipReleaseGrace: 0.2
+  captureByLegalMove: 1
   confirmCapturingStones: 1
   lastResult: Waiting for a placement
   lastCaptureCount: 0
@@ -5831,6 +5834,7 @@ MonoBehaviour:
   statusText: {fileID: 0}
   loadingLabel: Reading board
   liveLabel: Live score
+  countConfirmedOnly: 1
 --- !u!114 &641144578
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16484,6 +16488,77 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.RecognitionCell
   cellIndex: 11
   marker: {fileID: 612961435}
+--- !u!1 &1663287070
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1663287071}
+  - component: {fileID: 1663287073}
+  - component: {fileID: 1663287072}
+  m_Layer: 0
+  m_Name: Board Marks
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1663287071
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1663287070}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 263868336}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1663287072
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1663287070}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14894b2c5814c4926868d0e383e8bc0a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.ConfirmedStoneMarks
+  recognition: {fileID: 266304605}
+  material: {fileID: 2100000, guid: fbf984183587b491aab5f603a461eeb2, type: 2}
+  onBlack: {r: 0.82, g: 0.95, b: 0.9, a: 1}
+  onWhite: {r: 0.1, g: 0.33, b: 0.3, a: 1}
+  size: 0.3
+  lift: 0.01
+--- !u!114 &1663287073
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1663287070}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d6c4cd8a673f04791bab255d52f13ef6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.LegalMoveMarks
+  recognition: {fileID: 266304605}
+  view: {fileID: 961739752}
+  material: {fileID: 2100000, guid: fbf984183587b491aab5f603a461eeb2, type: 2}
+  blackMark: {r: 0.02, g: 0.025, b: 0.03, a: 1}
+  whiteMark: {r: 0.92, g: 0.9, b: 0.8, a: 1}
+  size: 0.6
+  offset: 0.45
+  lift: 0.03
 --- !u!1001 &1678303372
 PrefabInstance:
   m_ObjectHideFlags: 0
