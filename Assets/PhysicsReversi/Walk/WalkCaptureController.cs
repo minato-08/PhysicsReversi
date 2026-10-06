@@ -16,6 +16,9 @@ namespace PhysicsReversi.Walk
         [Header("Local repeat prevention (never stops other parts of the board)")]
         [Range(.05f, .5f)] public float lineBreakSeconds = .15f;
         [Range(.05f, .5f)] public float flipReleaseGrace = .2f;
+        [Header("Capture rule")]
+        [Tooltip("Off: a line captures when it forms, whichever of its stones a player moved. On: as in ordinary reversi, a loose stone captures only as one end of a line, only against confirmed stones, and is confirmed by doing so.")]
+        public bool captureByLegalMove;
         [Header("Capturing stones")]
         [Tooltip("The stones at both ends of a line that captures are confirmed at once, so the stone that made the capture cannot be picked up and used again.")]
         public bool confirmCapturingStones = true;
@@ -25,6 +28,7 @@ namespace PhysicsReversi.Walk
         public string LastResult => lastResult;
         public int LastCaptureCount => lastCaptureCount;
         readonly RealtimeCaptures detector = new RealtimeCaptures();
+        readonly LegalMoveCaptures legalMoves = new LegalMoveCaptures();
         readonly Dictionary<int, float> unavailableUntil = new Dictionary<int, float>();
         float lastScanTime;
         BoardRules.Snapshot previousSnapshot = new BoardRules.Snapshot();
@@ -38,7 +42,7 @@ namespace PhysicsReversi.Walk
         void OnDisable()
         {
             if (recognition != null) recognition.SnapshotUpdated -= OnSnapshot;
-            detector.Clear(); unavailableUntil.Clear();
+            detector.Clear(); legalMoves.Clear(); unavailableUntil.Clear();
         }
         void Start()
         {
@@ -57,6 +61,7 @@ namespace PhysicsReversi.Walk
                 if (unavailableUntil.TryGetValue(i, out float until) && Time.time < until) unavailable.Add(i);
             }
             float delta = Mathf.Max(0, Time.time - lastScanTime); lastScanTime = Time.time;
+            if (captureByLegalMove) { previousSnapshot = snapshot; CaptureByLegalMove(snapshot, unavailable); return; }
             var playerChanged = RealtimeCaptures.PlayerChanges(previousSnapshot, snapshot, origins);
             previousSnapshot = snapshot;
             var participants = new HashSet<int>();
@@ -72,6 +77,34 @@ namespace PhysicsReversi.Walk
             // also stop a struck neighbour from firing a delayed secondary capture.
             foreach (int id in participants)
                 if (playerChanged.Contains(id) && origins.TryGetValue(id, out var cause)) cause.Consume();
+            Flip(targets);
+            // No placement queue, no whole-board pause, no forced ownership change.
+        }
+        // A loose stone a player has moved is judged where it arrives. On a legal move it captures and is confirmed there.
+        void CaptureByLegalMove(BoardRules.Snapshot snapshot, HashSet<int> unavailable)
+        {
+            var loose = new HashSet<int>();
+            for (int i = 0; i < recognition.stones.Length; i++)
+            {
+                var stone = recognition.stones[i];
+                if (stone != null && stone.status == StoneStatus.OnBoard && !stone.Confirmed && !stone.IsFlipping &&
+                    stone.Motion != null && stone.Motion.CanCapture) loose.Add(i);
+            }
+            var moves = legalMoves.Scan(snapshot, recognition.Settled, loose, unavailable);
+            if (moves.Count == 0) return;
+            var targets = new HashSet<int>();
+            foreach (var move in moves)
+            {
+                var stone = recognition.stones[move.Id];
+                stone.ConfirmAt(move.Cell);
+                // The action is spent, for this stone and for any it struck on the way.
+                stone.Motion.Consume();
+                foreach (int id in move.CapturedIds) targets.Add(id);
+            }
+            Flip(targets);
+        }
+        void Flip(IEnumerable<int> targets)
+        {
             Vector3 up = recognition.boardOrigin.up;
             Vector3 axis = recognition.boardOrigin.TransformDirection(captureAxis.normalized);
             int flipped = 0;
@@ -88,7 +121,6 @@ namespace PhysicsReversi.Walk
             }
             lastCaptureCount = flipped;
             lastResult = "New live line: flipping " + flipped;
-            // No placement queue, no whole-board pause, no forced ownership change.
         }
     }
 }

@@ -12,6 +12,8 @@ namespace PhysicsReversi.Walk
         public Text statusText;
         public string loadingLabel = "Reading board";
         public string liveLabel = "Live score";
+        [Tooltip("Off: every recognized stone counts. On: only confirmed stones count.")]
+        public bool countConfirmedOnly;
         BoardRules.Snapshot displayed;
 
         void OnEnable()
@@ -23,9 +25,10 @@ namespace PhysicsReversi.Walk
         {
             if (recognition == null || !recognition.isActiveAndEnabled)
             { SetText(statusText, "Recognition unavailable"); return; }
-            if (recognition.HasSnapshot && displayed != recognition.Snapshot)
+            var board = countConfirmedOnly ? recognition.Settled : recognition.Snapshot;
+            if (recognition.HasSnapshot && displayed != board)
             {
-                displayed = recognition.Snapshot;
+                displayed = board;
                 SetText(blackScore, displayed.Count(1).ToString());
                 SetText(whiteScore, displayed.Count(2).ToString());
             }

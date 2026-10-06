@@ -17,6 +17,8 @@ namespace PhysicsReversi.Walk
         [Header("Confirmed stones")]
         [Tooltip("A stone recognized in the same cell for this long becomes confirmed.")]
         [Min(0)] public float confirmSeconds = 1.5f;
+        [Tooltip("Off: time on a cell confirms nothing. Only a capture confirms a stone (see Walk Capture Controller), and the stones that start on the board are confirmed from the first.")]
+        public bool confirmByTime = true;
         [Tooltip("A confirmed stone out of its cell for this long comes loose again. Shorter dropouts are ignored.")]
         [Min(0)] public float loosenSeconds = .5f;
         [Tooltip("A confirmed stone at the center of its cell weighs this many times as much, and so is harder to shove. 1 turns the hold off.")]
@@ -34,6 +36,8 @@ namespace PhysicsReversi.Walk
         [SerializeField] int confirmedStones;
         public string RecognitionState => recognitionState;
         public BoardRules.Snapshot Snapshot { get; private set; } = new BoardRules.Snapshot();
+        // The confirmed stones only, each in the cell it is confirmed in: the settled position.
+        public BoardRules.Snapshot Settled { get; private set; } = new BoardRules.Snapshot();
         public bool HasSnapshot { get; private set; }
         public event System.Action<BoardRules.Snapshot> SnapshotUpdated;
         static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
@@ -41,15 +45,19 @@ namespace PhysicsReversi.Walk
         float elapsed;
         MeshFilter[] filters;
         Vector3[][] meshVertices;
+        // Stones the scene starts with on the board, until each has been confirmed where it lies.
+        bool[] opening;
 
         void Start()
         {
             if (boardOrigin == null || cellWidth <= 0 || cells == null || cells.Length != 64 || stones == null)
             { Debug.LogError("Recognition references missing: run Add Recognition Rings in edit mode.", this); enabled = false; return; }
             filters = new MeshFilter[stones.Length]; meshVertices = new Vector3[stones.Length][];
+            opening = new bool[stones.Length];
             for (int i = 0; i < stones.Length; i++)
             {
                 if (stones[i] == null) continue;
+                opening[i] = stones[i].status == StoneStatus.OnBoard;
                 filters[i] = stones[i].GetComponentInChildren<MeshFilter>();
                 if (filters[i] != null && filters[i].sharedMesh != null)
                 {
@@ -111,11 +119,22 @@ namespace PhysicsReversi.Walk
         void Confirm(float deltaSeconds)
         {
             confirmedStones = 0;
+            var settled = new BoardRules.Snapshot();
             for (int i = 0; i < stones.Length; i++)
             {
                 var stone = stones[i]; if (stone == null) continue;
-                stone.TickConfirmation(System.Array.IndexOf(Snapshot.Ids, i), deltaSeconds, confirmSeconds, loosenSeconds);
+                int cell = System.Array.IndexOf(Snapshot.Ids, i);
+                // With no confirming by time, the opening stones would otherwise never be part of the position.
+                if (opening[i] && !confirmByTime)
+                {
+                    if (stone.status != StoneStatus.OnBoard) opening[i] = false;
+                    else if (cell >= 0) { stone.ConfirmAt(cell); opening[i] = false; }
+                }
+                stone.TickConfirmation(cell, deltaSeconds, confirmByTime ? confirmSeconds : float.PositiveInfinity, loosenSeconds);
                 if (stone.Confirmed) confirmedStones++;
+                // Two stones can share a cell for a moment, while the one knocked out of it has not come loose yet.
+                int held = stone.ConfirmedCell;
+                if (held >= 0 && (settled.Ids[held] < 0 || cell == held)) { settled.Ids[held] = i; settled.Owners[held] = stone.ownerId; }
                 // The better a confirmed stone is centered in its cell, the more firmly it is held.
                 float hold = 0;
                 if (stone.Confirmed && holdMultiplier > 1)
@@ -125,6 +144,7 @@ namespace PhysicsReversi.Walk
                 }
                 stone.SetHold(hold, holdMultiplier);
             }
+            Settled = settled;
             // The marks of a cell deepen once its stone is confirmed there.
             if (confirmedLook == null) confirmedLook = new MaterialPropertyBlock();
             confirmedLook.SetColor(BaseColor, confirmedMark);
