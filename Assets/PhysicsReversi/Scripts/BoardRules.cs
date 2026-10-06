@@ -115,23 +115,34 @@ namespace PhysicsReversi
             return board;
         }
         public static List<int> Captures(Snapshot board, int originCell, int owner)
+            => originCell < 0 || originCell >= 64 || board.Owners[originCell] != owner ? new List<int>() : CapturesFrom(board, originCell, owner);
+        // What a stone of 'owner' captures from 'cell', whether or not it stands there yet.
+        public static List<int> CapturesFrom(Snapshot board, int cell, int owner)
         {
             var result = new List<int>();
-            if (originCell < 0 || originCell >= 64 || board.Owners[originCell] != owner) return result;
+            if (cell < 0 || cell >= 64 || owner == 0) return result;
             for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++)
             {
                 if (dx == 0 && dz == 0) continue;
                 var line = new List<int>();
-                int x = originCell % 8 + dx, z = originCell / 8 + dz;
+                int x = cell % 8 + dx, z = cell / 8 + dz;
                 while (x >= 0 && x < 8 && z >= 0 && z < 8)
                 {
-                    int cell = z * 8 + x;
-                    if (board.Owners[cell] == 0) break;
-                    if (board.Owners[cell] == owner) { if (line.Count > 0) result.AddRange(line); break; }
-                    line.Add(board.Ids[cell]); x += dx; z += dz;
+                    int next = z * 8 + x;
+                    if (board.Owners[next] == 0) break;
+                    if (board.Owners[next] == owner) { if (line.Count > 0) result.AddRange(line); break; }
+                    line.Add(board.Ids[next]); x += dx; z += dz;
                 }
             }
             return result;
+        }
+        // The legal moves of ordinary reversi: the empty cells from which 'owner' would capture.
+        public static bool[] LegalMoves(Snapshot board, int owner)
+        {
+            var legal = new bool[64];
+            for (int cell = 0; cell < 64; cell++)
+                legal[cell] = board.Ids[cell] < 0 && CapturesFrom(board, cell, owner).Count > 0;
+            return legal;
         }
     }
 }

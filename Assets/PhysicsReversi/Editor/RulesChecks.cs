@@ -224,6 +224,47 @@ namespace PhysicsReversi
                 "hold falls off smoothly with distance from the center"); checks++;
             Check(StoneHold.MassFactor(0, 4) == 1 && StoneHold.MassFactor(1, 4) == 4 && StoneHold.MassFactor(.5, 4) == 2.5,
                 "hold makes a stone heavier, up to the multiplier"); checks++;
+            // Legal moves, from the opening of ordinary reversi: white on 27 and 36, black on 28 and 35.
+            b = new BoardRules.Snapshot();
+            b.Ids[27] = 27; b.Owners[27] = 2; b.Ids[28] = 28; b.Owners[28] = 1;
+            b.Ids[35] = 35; b.Owners[35] = 1; b.Ids[36] = 36; b.Owners[36] = 2;
+            var legalBlack = BoardRules.LegalMoves(b, 1); var legalWhite = BoardRules.LegalMoves(b, 2);
+            Check(Array.FindAll(legalBlack, x => x).Length == 4 && legalBlack[19] && legalBlack[26] && legalBlack[37] && legalBlack[44],
+                "black's legal moves are the cells from which it would capture"); checks++;
+            Check(Array.FindAll(legalWhite, x => x).Length == 4 && legalWhite[20] && legalWhite[29] && legalWhite[34] && legalWhite[43],
+                "white's legal moves are judged on the same board"); checks++;
+            Check(!legalBlack[27] && !legalBlack[28] && !legalBlack[0], "an occupied cell, or one that captures nothing, is not a legal move"); checks++;
+            Check(BoardRules.CapturesFrom(b, 26, 1).Count == 1 && BoardRules.CapturesFrom(b, 26, 1)[0] == 27 && BoardRules.Captures(b, 26, 1).Count == 0,
+                "captures can be asked of a cell before any stone stands there"); checks++;
+            // Captures by legal move. 'b' is the settled board; 'now' adds the loose stones lying on it.
+            var legal = new LegalMoveCaptures(); var loose = new HashSet<int> { 50 };
+            var now = new BoardRules.Snapshot();
+            for (int i = 0; i < 64; i++) { now.Ids[i] = b.Ids[i]; now.Owners[i] = b.Owners[i]; }
+            now.Ids[26] = 50; now.Owners[26] = 1;
+            var moves = legal.Scan(now, b, loose, free);
+            Check(moves.Count == 1 && moves[0].Id == 50 && moves[0].Cell == 26 && moves[0].CapturedIds.Count == 1 && moves[0].CapturedIds[0] == 27,
+                "a loose stone arriving on a legal move captures"); checks++;
+            Check(legal.Scan(now, b, loose, free).Count == 0, "a stone that stays where it was judged is not judged again"); checks++;
+            legal.Clear();
+            Check(legal.Scan(now, b, new HashSet<int>(), free).Count == 0, "a stone no player moved makes no move"); checks++;
+            now.Ids[26] = -1; now.Owners[26] = 0; now.Ids[0] = 50; now.Owners[0] = 1;
+            Check(legal.Scan(now, b, loose, free).Count == 0, "a stone on a cell that captures nothing makes no move"); checks++;
+            now.Ids[0] = -1; now.Owners[0] = 0; now.Ids[26] = 50; now.Owners[26] = 1;
+            Check(legal.Scan(now, b, loose, free).Count == 1, "the same stone moved onto a legal move captures"); checks++;
+            // White on 0 and 2: black set down between them captures nothing, and is not captured.
+            legal.Clear(); b = new BoardRules.Snapshot(); now = new BoardRules.Snapshot();
+            b.Ids[0] = 0; b.Owners[0] = 2; b.Ids[2] = 2; b.Owners[2] = 2;
+            now.Ids[0] = 0; now.Owners[0] = 2; now.Ids[2] = 2; now.Owners[2] = 2; now.Ids[1] = 50; now.Owners[1] = 1;
+            Check(legal.Scan(now, b, loose, free).Count == 0, "a stone set down between two opposing stones is not captured"); checks++;
+            // Black loose on 0, white settled on 1: black arriving on 2 has no settled stone to capture with.
+            legal.Clear(); b = new BoardRules.Snapshot(); now = new BoardRules.Snapshot();
+            b.Ids[1] = 1; b.Owners[1] = 2;
+            now.Ids[0] = 51; now.Owners[0] = 1; now.Ids[1] = 1; now.Owners[1] = 2; now.Ids[2] = 50; now.Owners[2] = 1;
+            Check(legal.Scan(now, b, new HashSet<int> { 50, 51 }, free).Count == 0, "a loose stone cannot be the far end of a capture"); checks++;
+            // Black settled on 0, white settled on 1 and still turning over from a capture.
+            legal.Clear(); b.Ids[0] = 0; b.Owners[0] = 1; now.Ids[0] = 0;
+            Check(legal.Scan(now, b, loose, new HashSet<int> { 1 }).Count == 0, "a move through a stone still flipping waits"); checks++;
+            Check(legal.Scan(now, b, loose, free).Count == 1, "and is judged once the flip is over"); checks++;
             return checks;
         }
     }
