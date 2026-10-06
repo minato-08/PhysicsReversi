@@ -265,6 +265,25 @@ namespace PhysicsReversi
             legal.Clear(); b.Ids[0] = 0; b.Owners[0] = 1; now.Ids[0] = 0;
             Check(legal.Scan(now, b, loose, new HashSet<int> { 1 }).Count == 0, "a move through a stone still flipping waits"); checks++;
             Check(legal.Scan(now, b, loose, free).Count == 1, "and is judged once the flip is over"); checks++;
+            // The same board, with a wait: the stone has to keep its cell for 1.5 seconds before it is judged.
+            legal.Clear();
+            Check(legal.Scan(now, b, loose, free, .5, 1.5).Count == 0, "the first sample on a cell only starts the wait"); checks++;
+            legal.Scan(now, b, loose, free, .5, 1.5);
+            Check(legal.Scan(now, b, loose, free, .5, 1.5).Count == 0, "a stone on a legal move does not capture before the wait is up"); checks++;
+            Check(legal.Scan(now, b, loose, free, .5, 1.5).Count == 1, "a stone that has kept a legal move for the wait captures"); checks++;
+            Check(legal.Scan(now, b, loose, free, .5, 1.5).Count == 0, "and captures only once"); checks++;
+            legal.Clear();
+            legal.Scan(now, b, loose, free, .5, 1.5); legal.Scan(now, b, loose, free, .5, 1.5); legal.Scan(now, b, loose, free, .5, 1.5);
+            now.Ids[2] = -1; now.Owners[2] = 0; legal.Scan(now, b, loose, free, .5, 1.5);
+            now.Ids[2] = 50; now.Owners[2] = 1; legal.Scan(now, b, loose, free, .5, 1.5);
+            legal.Scan(now, b, loose, free, .5, 1.5);
+            Check(legal.Scan(now, b, loose, free, .5, 1.5).Count == 0, "leaving the cell starts the wait over"); checks++;
+            Check(legal.Scan(now, b, loose, free, .5, 1.5).Count == 1, "and the stone captures once it has waited again"); checks++;
+            // No black at the far end while the stone waits: it is judged, captures nothing, and that is final.
+            legal.Clear(); b.Ids[0] = -1; b.Owners[0] = 0;
+            for (int i = 0; i < 4; i++) legal.Scan(now, b, loose, free, .5, 1.5);
+            b.Ids[0] = 0; b.Owners[0] = 1;
+            Check(legal.Scan(now, b, loose, free, .5, 1.5).Count == 0, "a stone judged on its cell is not judged again when the board changes"); checks++;
             return checks;
         }
     }

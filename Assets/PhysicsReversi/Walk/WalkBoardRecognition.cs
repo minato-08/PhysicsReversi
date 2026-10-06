@@ -15,9 +15,9 @@ namespace PhysicsReversi.Walk
         [Range(.001f, .1f)] public float boundaryTolerance = .03f;
         [Range(0, .5f)] public float edgeFaceTolerance = .1f;
         [Header("Confirmed stones")]
-        [Tooltip("A stone recognized in the same cell for this long becomes confirmed.")]
+        [Tooltip("A stone recognized in the same cell for this long becomes confirmed. With Capture By Legal Move, it is then judged, and confirmed only if it captures.")]
         [Min(0)] public float confirmSeconds = 1.5f;
-        [Tooltip("Off: time on a cell confirms nothing. Only a capture confirms a stone (see Walk Capture Controller), and the stones that start on the board are confirmed from the first.")]
+        [Tooltip("Off: time on a cell alone confirms nothing. Only a capture confirms a stone (see Walk Capture Controller), and the stones that start on the board are confirmed from the first.")]
         public bool confirmByTime = true;
         [Tooltip("A confirmed stone out of its cell for this long comes loose again. Shorter dropouts are ignored.")]
         [Min(0)] public float loosenSeconds = .5f;

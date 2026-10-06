@@ -17,7 +17,7 @@ namespace PhysicsReversi.Walk
         [Range(.05f, .5f)] public float lineBreakSeconds = .15f;
         [Range(.05f, .5f)] public float flipReleaseGrace = .2f;
         [Header("Capture rule")]
-        [Tooltip("Off: a line captures when it forms, whichever of its stones a player moved. On: as in ordinary reversi, a loose stone captures only as one end of a line, only against confirmed stones, and is confirmed by doing so.")]
+        [Tooltip("Off: a line captures when it forms, whichever of its stones a player moved. On: as in ordinary reversi, a loose stone captures only as one end of a line, only against confirmed stones, and is confirmed by doing so. It is judged once, when it has kept its cell for the recognition's Confirm Seconds; 0 judges it as it arrives.")]
         public bool captureByLegalMove;
         [Header("Capturing stones")]
         [Tooltip("The stones at both ends of a line that captures are confirmed at once, so the stone that made the capture cannot be picked up and used again.")]
@@ -61,7 +61,7 @@ namespace PhysicsReversi.Walk
                 if (unavailableUntil.TryGetValue(i, out float until) && Time.time < until) unavailable.Add(i);
             }
             float delta = Mathf.Max(0, Time.time - lastScanTime); lastScanTime = Time.time;
-            if (captureByLegalMove) { previousSnapshot = snapshot; CaptureByLegalMove(snapshot, unavailable); return; }
+            if (captureByLegalMove) { previousSnapshot = snapshot; CaptureByLegalMove(snapshot, unavailable, delta); return; }
             var playerChanged = RealtimeCaptures.PlayerChanges(previousSnapshot, snapshot, origins);
             previousSnapshot = snapshot;
             var participants = new HashSet<int>();
@@ -80,8 +80,8 @@ namespace PhysicsReversi.Walk
             Flip(targets);
             // No placement queue, no whole-board pause, no forced ownership change.
         }
-        // A loose stone a player has moved is judged where it arrives. On a legal move it captures and is confirmed there.
-        void CaptureByLegalMove(BoardRules.Snapshot snapshot, HashSet<int> unavailable)
+        // A loose stone a player has moved is judged once it has stayed in a cell. On a legal move it captures and is confirmed there.
+        void CaptureByLegalMove(BoardRules.Snapshot snapshot, HashSet<int> unavailable, float delta)
         {
             var loose = new HashSet<int>();
             for (int i = 0; i < recognition.stones.Length; i++)
@@ -90,7 +90,7 @@ namespace PhysicsReversi.Walk
                 if (stone != null && stone.status == StoneStatus.OnBoard && !stone.Confirmed && !stone.IsFlipping &&
                     stone.Motion != null && stone.Motion.CanCapture) loose.Add(i);
             }
-            var moves = legalMoves.Scan(snapshot, recognition.Settled, loose, unavailable);
+            var moves = legalMoves.Scan(snapshot, recognition.Settled, loose, unavailable, delta, recognition.confirmSeconds);
             if (moves.Count == 0) return;
             var targets = new HashSet<int>();
             foreach (var move in moves)

@@ -2,9 +2,9 @@ using System.Collections.Generic;
 
 namespace PhysicsReversi
 {
-    // Captures as in ordinary reversi. A loose stone that arrives in a cell captures only as one
-    // end of a line, and only against the settled board: the confirmed stones. A stone set down
-    // between two opposing stones captures nothing, and nothing captures it.
+    // Captures as in ordinary reversi. A loose stone that has kept its cell for the wait captures
+    // only as one end of a line, and only against the settled board: the confirmed stones. A
+    // stone set down between two opposing stones captures nothing, and nothing captures it.
     public sealed class LegalMoveCaptures
     {
         public sealed class Move
@@ -12,12 +12,21 @@ namespace PhysicsReversi
             public int Id, Cell, Owner;
             public List<int> CapturedIds;
         }
-        // Stone id -> the cell and owner it was last judged at. A stone is judged once per arrival.
-        readonly Dictionary<int, int> judged = new Dictionary<int, int>();
+        sealed class Stay
+        {
+            // The cell and owner the stone is staying as.
+            public int Key;
+            public double Seconds;
+            public bool Judged;
+        }
+        // By stone id. A stone is judged once per stay: when it has kept its cell and color for the wait.
+        readonly Dictionary<int, Stay> stays = new Dictionary<int, Stay>();
 
         // recognized: every stone on the board now. settled: the confirmed stones only.
         // loose: unconfirmed stones a player has moved. unavailable: stones in a capture flip.
-        public List<Move> Scan(BoardRules.Snapshot recognized, BoardRules.Snapshot settled, HashSet<int> loose, HashSet<int> unavailable)
+        // With no wait a stone is judged on the sample it arrives.
+        public List<Move> Scan(BoardRules.Snapshot recognized, BoardRules.Snapshot settled, HashSet<int> loose, HashSet<int> unavailable,
+            double deltaSeconds = 0, double waitSeconds = 0)
         {
             var moves = new List<Move>();
             var seen = new HashSet<int>();
@@ -27,18 +36,21 @@ namespace PhysicsReversi
                 if (id < 0 || owner == 0 || !loose.Contains(id)) continue;
                 seen.Add(id);
                 int key = cell * 4 + owner;
-                if (judged.TryGetValue(id, out int last) && last == key) continue;
+                // The first sample in a cell only starts the count.
+                if (!stays.TryGetValue(id, out var stay) || stay.Key != key) stays[id] = stay = new Stay { Key = key };
+                else stay.Seconds += deltaSeconds;
+                if (stay.Judged || stay.Seconds < waitSeconds) continue;
                 // A flip in one of its lines leaves the outcome open: judge once the flip is over.
                 if (Touches(settled, cell, owner, unavailable)) continue;
-                judged[id] = key;
+                stay.Judged = true;
                 if (settled.Ids[cell] >= 0 && settled.Ids[cell] != id) continue;
                 var captured = BoardRules.CapturesFrom(settled, cell, owner);
                 if (captured.Count > 0) moves.Add(new Move { Id = id, Cell = cell, Owner = owner, CapturedIds = captured });
             }
-            // A stone that left its cell, or is no longer loose, is judged afresh when it comes back.
+            // A stone that left its cell, or is no longer loose, starts over when it comes back.
             var gone = new List<int>();
-            foreach (int id in judged.Keys) if (!seen.Contains(id)) gone.Add(id);
-            foreach (int id in gone) judged.Remove(id);
+            foreach (int id in stays.Keys) if (!seen.Contains(id)) gone.Add(id);
+            foreach (int id in gone) stays.Remove(id);
             return moves;
         }
         // Whether a line from 'cell' meets an unavailable stone before the line ends.
@@ -60,6 +72,6 @@ namespace PhysicsReversi
             }
             return false;
         }
-        public void Clear() => judged.Clear();
+        public void Clear() => stays.Clear();
     }
 }
