@@ -4,13 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-物理演算で石を扱うリバーシのUnity試作。Unity 6、URP、Input Systemを使う。コミット済みのUnityは`6000.4.3f1`で、環境によってはより新しい版で開いている。
+物理演算で石を扱うリバーシのUnity試作。Unity 6、URP、Input Systemを使う。Unityは`6000.6.4f1`（2026-11-24に`6000.4.3f1`から上げた）。
 
 プレイヤーが歩き回り、石を掴んで盤に置く。石の所属は**その時点で上を向いている面の色**で決まり、静止は待たない。
 
 現状の仕様、操作、調整項目は`README.md`（日本語）に、目指す仕様と未確定事項は`SPEC.md`にまとめてある。ルールを変えるときは両方を更新する。
 
-複数のPCから作業するため、`CLAUDE.md`などのコンテキストファイルはコミットしてPushしてよい。`ProjectSettings/ProjectVersion.txt`は、PCごとのUnityパッチ版の違いで書き換わるので、意図しない限りコミットしない。
+複数のPCから作業するため、`CLAUDE.md`などのコンテキストファイルはコミットしてPushしてよい。`ProjectSettings/ProjectVersion.txt`は、版をそろえ直すとき以外はコミットしない。別のPCも`6000.6.4f1`で開く。
+
+## 禁止事項
+
+- `.unity` `.prefab` `.asset` `.mat` `.meta` `.physicMaterial`と`ProjectSettings/`を、テキストとして直接編集しない。Editor経由（セットアップメニューか`unity command`）で変える。Edit/Writeはフック（`.claude/hooks/guard-unity-files.sh`）で止まる。
+- `Library/`を消さない。ユーザーが始めたPlayを止めない。Editorを勝手に閉じない。
 
 ## 進め方（シーン・コミット・ブランチ）
 
@@ -27,6 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CLIビルドスクリプトやUnity Test Frameworkのテストはない。検証はUnityエディタ上で行う。
 
+- コードを変えたら`unity recompile --project-path . --format json`でコンパイルを確かめる。終了コードは0が成功、6がコンパイルエラー、7がEditorに未接続。未コミットの`.cs`があると、Stopフック（`.claude/hooks/check-compile.sh`）が応答の終わりに自動で実行する。macOSでは`unity`がPATHにないので`~/.unity/bin/unity`で呼ぶ。
 - **ルールテスト**は、メニュー`Physics Reversi → Run Rule Checks`で実行する。メニューの実装は`Assets/PhysicsReversi/Editor/PrototypeSetup.cs`にある。`RulesChecks.Run()`が純粋ロジックを検査し、失敗時は`"FAILED: <名前>"`の例外を投げる。成功時は通過件数をログに出力する。
   - バッチ実行するコマンドは`Unity.exe -batchmode -projectPath . -executeMethod PhysicsReversi.Editor.PrototypeSetup.RunRuleChecks -quit -logFile -`。`Unity.exe`はWindowsの例で、macOSでは`/Applications/Unity/Hub/Editor/<版>/Unity.app/Contents/MacOS/Unity`を使う。
   - 個別のテストを実行する仕組みはない。`RulesChecks.cs`は、1本のメソッドに`Check(...); checks++;`を並べた形式なので、テストを追加するときもこの形式に合わせる。このファイルはEditorフォルダにあるが、namespaceは`PhysicsReversi`。
