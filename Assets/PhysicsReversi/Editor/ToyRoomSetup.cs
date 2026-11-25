@@ -74,6 +74,39 @@ namespace PhysicsReversi.Editor
             foreach (var p in new[] { new Vector2(0, 0), new Vector2(-.5f, -.5f), new Vector2(.5f, .5f), new Vector2(-.5f, .5f), new Vector2(.5f, -.5f) })
                 Part("Pip", PrimitiveType.Sphere, die, new Vector3(p.x, 1.8f, p.y), new Vector3(.32f, .08f, .32f), ink, false);
 
+            // A notebook and two crayons on the near left corner of the top.
+            var notes = Empty("Notebook", group.transform, new Vector3(near, topY, left + .3f), -14);
+            Part("Cover", PrimitiveType.Cube, notes, new Vector3(0, .15f, 0), new Vector3(3.4f, .3f, 4.4f), sky);
+            Part("Pages", PrimitiveType.Cube, notes, new Vector3(.08f, .2f, .06f), new Vector3(3.2f, .26f, 4.3f), milk, false);
+            Part("Crayon", PrimitiveType.Cylinder, group.transform, new Vector3(near - 2.6f, topY + .25f, left + 4.2f), new Vector3(.5f, 1.6f, .5f), coral, true, 0, new Vector3(0, 35, 90));
+            Part("Crayon", PrimitiveType.Cylinder, group.transform, new Vector3(near - 1.2f, topY + .25f, left + 5.4f), new Vector3(.5f, 1.6f, .5f), mint, true, 0, new Vector3(0, 70, 90));
+
+            // The far wall, with a window the sun comes through (the key light shines from this side).
+            // The wall faces away from the sun; extra ambient keeps it a soft cream instead of a dark band.
+            var wallMat = ToonLookSetup.Toon(shader, "ToonWall", Palette.Wall, 0f); wallMat.SetFloat("_ReceiveAmbient", .9f);
+            var pane = ToonLookSetup.Toon(shader, "ToonWindow", Palette.SkyTop, 0f); pane.SetFloat("_ReceiveAmbient", 1f);
+            float wallX = b.center.x - hx - 16;
+            Part("Wall", PrimitiveType.Cube, group.transform, new Vector3(wallX, roomY + 20, b.center.z), new Vector3(1, 40, 220), wallMat, false);
+            Part("Baseboard", PrimitiveType.Cube, group.transform, new Vector3(wallX + .7f, roomY + .9f, b.center.z), new Vector3(.6f, 1.8f, 220), edge, false);
+            var window = Empty("Window", group.transform, new Vector3(wallX + .6f, roomY + 9, b.center.z), 0);
+            Part("Pane", PrimitiveType.Cube, window, new Vector3(0, 9, 0), new Vector3(.2f, 18, 30), pane, false);
+            Part("Sill", PrimitiveType.Cube, window, new Vector3(.6f, -.4f, 0), new Vector3(1.6f, .8f, 33), milk, false);
+            Part("Frame", PrimitiveType.Cube, window, new Vector3(.2f, 9, 0), new Vector3(.5f, 18, .8f), milk, false);
+            Part("Frame", PrimitiveType.Cube, window, new Vector3(.2f, 9, -15), new Vector3(.5f, 18, .8f), milk, false);
+            Part("Frame", PrimitiveType.Cube, window, new Vector3(.2f, 9, 15), new Vector3(.5f, 18, .8f), milk, false);
+
+            // Toys left on the floor around the table.
+            var box = Empty("Toy Box", group.transform, new Vector3(b.center.x - hx - 7, roomY, b.center.z - hz - 12), 12);
+            Part("Box", PrimitiveType.Cube, box, new Vector3(0, 3, 0), new Vector3(9, 6, 7), coral);
+            Part("Trim", PrimitiveType.Cube, box, new Vector3(0, 6.1f, 0), new Vector3(9.4f, .5f, 7.4f), accent);
+            var books = Empty("Books", group.transform, new Vector3(b.center.x - hx - 6, roomY, b.center.z + hz + 11), -20);
+            Part("Book", PrimitiveType.Cube, books, new Vector3(0, .6f, 0), new Vector3(5, 1.2f, 7), mint);
+            Part("Book", PrimitiveType.Cube, books, new Vector3(.2f, 1.8f, -.1f), new Vector3(4.6f, 1.2f, 6.4f), sky, true, 9);
+            Part("Book", PrimitiveType.Cube, books, new Vector3(-.1f, 2.9f, .2f), new Vector3(4.2f, 1, 6), coral, true, -6);
+            Part("Block", PrimitiveType.Cube, group.transform, new Vector3(b.center.x + 2, roomY + 1.1f, b.center.z - hz - 9), Vector3.one * 2.2f, accent, true, 33);
+            Part("Block", PrimitiveType.Cube, group.transform, new Vector3(b.center.x + 8, roomY + 1.1f, b.center.z + hz + 8), Vector3.one * 2.2f, mint, true, -21);
+            Part("Ball", PrimitiveType.Sphere, group.transform, new Vector3(b.center.x - 4, roomY + 1.5f, b.center.z + hz + 14), Vector3.one * 3, accent);
+
             EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
             Debug.Log("Toy room built under " + GroupName + ".");
         }
@@ -85,13 +118,13 @@ namespace PhysicsReversi.Editor
             return obj.transform;
         }
 
-        static Transform Part(string name, PrimitiveType shape, Transform parent, Vector3 position, Vector3 scale, Material material, bool castShadow = true, float yaw = 0)
+        static Transform Part(string name, PrimitiveType shape, Transform parent, Vector3 position, Vector3 scale, Material material, bool castShadow = true, float yaw = 0, Vector3? euler = null)
         {
             var obj = GameObject.CreatePrimitive(shape);
             Object.DestroyImmediate(obj.GetComponent<Collider>()); // decor never touches the game
             obj.name = name; obj.isStatic = true;
             obj.transform.SetParent(parent, false); obj.transform.localPosition = position; obj.transform.localScale = scale;
-            obj.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+            obj.transform.localRotation = euler.HasValue ? Quaternion.Euler(euler.Value) : Quaternion.Euler(0, yaw, 0);
             var renderer = obj.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = castShadow ? ShadowCastingMode.On : ShadowCastingMode.Off;

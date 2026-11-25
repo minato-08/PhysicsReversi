@@ -19,6 +19,7 @@ namespace PhysicsReversi.Walk
         public static readonly Color TableEdge = Hex(0xE6CC9F);
         public static readonly Color RoomFloor = Hex(0xD9AE84);
         public static readonly Color Rug = Hex(0xD8CCF0);
+        public static readonly Color Wall = Hex(0xF7E3D3);
         public static readonly Color Sun = Hex(0xFFF2DC);
         public static readonly Color SkyTop = Hex(0xBFE3F5);
         public static readonly Color SkyHorizon = Hex(0xFDF1DC);
