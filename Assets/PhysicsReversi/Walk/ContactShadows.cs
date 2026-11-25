@@ -19,7 +19,7 @@ namespace PhysicsReversi.Walk
         [Tooltip("Above this height (world) a lifted stone's shadow has shrunk and faded fully.")]
         public float fadeHeight = 5f;
         [Range(0, 1)] public float amount = .7f;
-        [Tooltip("Decor standing up from the table (the board frame). A shadow over one lies on its top instead of under it.")]
+        [Tooltip("Decor standing up from the table (the board frame). The part of a shadow over one is drawn again on its top, since the table-level shadow is buried inside it.")]
         public Bounds[] raised = new Bounds[0];
         [Header("Player figures")]
         [Tooltip("Half width and half depth of the shadow under a figure (world). Wider than the torso (0.68), or the body hides it from the camera.")]
@@ -34,9 +34,12 @@ namespace PhysicsReversi.Walk
         WalkPlayer[] figures;
         Transform[] shadows;   // stones first, then figures
         Renderer[] renderers;
+        Transform[] tops;      // the same shadows again, on the top of the frame bar they overlap
+        Renderer[] topRenderers;
         MaterialPropertyBlock block;
         Light sun;
         static readonly int AmountId = Shader.PropertyToID("_Amount");
+        static readonly int ClipRectId = Shader.PropertyToID("_ClipRect");
 
         void Start()
         {
@@ -44,17 +47,14 @@ namespace PhysicsReversi.Walk
             figures = FindObjectsByType<WalkPlayer>();
             int count = stones.Length + figures.Length;
             shadows = new Transform[count]; renderers = new Renderer[count];
+            tops = new Transform[count]; topRenderers = new Renderer[count];
             var mesh = Disc(32);
             for (int i = 0; i < count; i++)
             {
                 string owner = i < stones.Length ? stones[i].name : figures[i - stones.Length].name;
-                var obj = new GameObject("Shadow " + owner, typeof(MeshFilter), typeof(MeshRenderer));
-                obj.transform.SetParent(transform, false);
-                obj.GetComponent<MeshFilter>().sharedMesh = mesh;
-                var renderer = obj.GetComponent<MeshRenderer>();
-                renderer.sharedMaterial = material;
-                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; renderer.receiveShadows = false;
-                shadows[i] = obj.transform; renderers[i] = renderer;
+                renderers[i] = Make("Shadow " + owner, mesh, out shadows[i]);
+                topRenderers[i] = Make("Shadow on frame " + owner, mesh, out tops[i]);
+                topRenderers[i].enabled = false;
             }
             block = new MaterialPropertyBlock();
             foreach (var light in FindObjectsByType<Light>()) if (light.type == LightType.Directional) sun = light;
@@ -79,8 +79,7 @@ namespace PhysicsReversi.Walk
                 float height = lowest - ground;
                 bool visible = stone.gameObject.activeInHierarchy && stone.status != StoneStatus.Removed
                     && height > -.3f && height < fadeHeight && tableArea.Contains(new Vector2(p.x, p.z));
-                if (renderers[i].enabled != visible) renderers[i].enabled = visible;
-                if (!visible) continue;
+                if (!visible) { Hide(i); continue; }
 
                 float lift = Mathf.Clamp01(Mathf.Max(0, height) / fadeHeight);
                 // A tilted stone's footprint narrows along the direction it leans.
@@ -90,11 +89,7 @@ namespace PhysicsReversi.Walk
                 float along = Mathf.Max(across * Mathf.Abs(up.y), halfThickness * 1.6f);
                 // The middle of the stone's height decides where the middle of its shadow falls.
                 float middle = Mathf.Max(0, height) + halfThickness * Mathf.Abs(up.y);
-                Vector3 at = new Vector3(p.x, 0, p.z) + slide * middle; at.y = GroundAt(at) + Lift;
-                shadows[i].SetPositionAndRotation(at, turn);
-                shadows[i].localScale = new Vector3(across, 1, along);
-                block.SetFloat(AmountId, amount * (1 - lift));
-                renderers[i].SetPropertyBlock(block);
+                Place(i, new Vector3(p.x, 0, p.z) + slide * middle, turn, across, along, amount * (1 - lift));
             }
 
             for (int f = 0; f < figures.Length; f++)
@@ -102,16 +97,60 @@ namespace PhysicsReversi.Walk
                 int i = stones.Length + f;
                 var t = figures[f].transform; Vector3 p = t.position;
                 bool visible = figures[f].isActiveAndEnabled && tableArea.Contains(new Vector2(p.x, p.z));
-                if (renderers[i].enabled != visible) renderers[i].enabled = visible;
-                if (!visible) continue;
-                shadows[i].SetPositionAndRotation(new Vector3(p.x, GroundAt(p) + Lift, p.z), Quaternion.Euler(0, t.eulerAngles.y, 0));
-                shadows[i].localScale = new Vector3(figureSize.x, 1, figureSize.y);
-                block.SetFloat(AmountId, figureAmount);
-                renderers[i].SetPropertyBlock(block);
+                if (!visible) { Hide(i); continue; }
+                Place(i, p, Quaternion.Euler(0, t.eulerAngles.y, 0), figureSize.x, figureSize.y, figureAmount);
             }
         }
 
-        // The height a shadow at this spot lies on: the table, or the top of a raised piece of decor.
+        // One shadow on the table, plus a copy on the top of the frame bar it overlaps most, cut
+        // to that bar so it never hangs in the air. Where the table-level one runs under the bar
+        // the bar hides it, so together they read as one shadow draped over the frame.
+        void Place(int i, Vector3 at, Quaternion turn, float across, float along, float shade)
+        {
+            var scale = new Vector3(across, 1, along);
+            block.SetFloat(AmountId, shade);
+            block.SetVector(ClipRectId, new Vector4(-1e5f, -1e5f, 1e5f, 1e5f));
+            if (!renderers[i].enabled) renderers[i].enabled = true;
+            shadows[i].SetPositionAndRotation(new Vector3(at.x, groundHeight + Lift, at.z), turn);
+            shadows[i].localScale = scale;
+            renderers[i].SetPropertyBlock(block);
+
+            float reach = Mathf.Max(across, along), best = 0; int bar = -1;
+            for (int b = 0; b < raised.Length; b++)
+            {
+                float w = Mathf.Min(at.x + reach, raised[b].max.x) - Mathf.Max(at.x - reach, raised[b].min.x);
+                float d = Mathf.Min(at.z + reach, raised[b].max.z) - Mathf.Max(at.z - reach, raised[b].min.z);
+                if (w > 0 && d > 0 && w * d > best) { best = w * d; bar = b; }
+            }
+            bool onFrame = bar >= 0;
+            if (topRenderers[i].enabled != onFrame) topRenderers[i].enabled = onFrame;
+            if (!onFrame) return;
+            var top = raised[bar];
+            tops[i].SetPositionAndRotation(new Vector3(at.x, top.max.y + Lift, at.z), turn);
+            tops[i].localScale = scale;
+            block.SetVector(ClipRectId, new Vector4(top.min.x, top.min.z, top.max.x, top.max.z));
+            topRenderers[i].SetPropertyBlock(block);
+        }
+
+        void Hide(int i)
+        {
+            if (renderers[i].enabled) renderers[i].enabled = false;
+            if (topRenderers[i].enabled) topRenderers[i].enabled = false;
+        }
+
+        Renderer Make(string name, Mesh mesh, out Transform t)
+        {
+            var obj = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            obj.transform.SetParent(transform, false);
+            obj.GetComponent<MeshFilter>().sharedMesh = mesh;
+            var renderer = obj.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off; renderer.receiveShadows = false;
+            t = obj.transform;
+            return renderer;
+        }
+
+        // The height of what a stone at this spot rests on: the table, or the top of the frame.
         float GroundAt(Vector3 p)
         {
             float y = groundHeight;

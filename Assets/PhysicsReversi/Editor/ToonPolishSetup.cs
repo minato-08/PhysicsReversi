@@ -170,7 +170,7 @@ namespace PhysicsReversi.Editor
                 shadows.groundHeight = b.max.y;
                 shadows.tableArea = new Rect(b.min.x, b.min.z, b.size.x, b.size.z);
             }
-            // Players start standing on the frame; their shadow must lie on it, not under it.
+            // Players start right beside the frame; the part of their shadow over it is drawn on its top.
             var frame = GameObject.Find(FrameName);
             if (frame != null)
             {
