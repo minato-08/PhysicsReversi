@@ -3307,6 +3307,7 @@ MonoBehaviour:
   particleMaterial: {fileID: 2100000, guid: 9960dcce97b6942d68cd5909a0e882b2, type: 2}
   particleScale: 2.2
   grabPop: {x: 1.12, y: 1.8, z: 1.12}
+  catchPop: {x: 1.12, y: 0.7, z: 1.12}
   minImpactSpeed: 2.5
   fullImpactSpeed: 12
   landPop: {x: 1.1, y: 0.55, z: 1.1}
@@ -18734,8 +18735,13 @@ MonoBehaviour:
   moveSpeed: 6
   turnSpeed: 540
   pushStrength: 110
-  carryFollowSpeed: 8
-  maxCarrySpeed: 12
+  liftSeconds: {x: 0.16, y: 0.26}
+  liftArc: 0.8
+  swayStiffness: 13
+  swayDamping: 0.4
+  swayAmount: 0.5
+  swayLimit: 0.4
+  swayTilt: 28
   walkableArea: {fileID: 197944956}
 --- !u!143 &1380288140
 CharacterController:
@@ -22576,8 +22582,13 @@ MonoBehaviour:
   moveSpeed: 6
   turnSpeed: 540
   pushStrength: 110
-  carryFollowSpeed: 8
-  maxCarrySpeed: 12
+  liftSeconds: {x: 0.16, y: 0.26}
+  liftArc: 0.8
+  swayStiffness: 13
+  swayDamping: 0.4
+  swayAmount: 0.5
+  swayLimit: 0.4
+  swayTilt: 28
   walkableArea: {fileID: 197944956}
 --- !u!143 &1610185262
 CharacterController:
@@ -22666,6 +22677,9 @@ MonoBehaviour:
   breathRate: 0.6
   breathAmount: 0.025
   holdReach: {x: 0, y: 0.35, z: 0.45}
+  liftDip: 0.14
+  liftLean: 16
+  catchSquash: 0.2
   readyLean: 14
   blend: 10
 --- !u!114 &1616048551 stripped
@@ -25503,6 +25517,9 @@ MonoBehaviour:
   breathRate: 0.6
   breathAmount: 0.025
   holdReach: {x: 0, y: 0.35, z: 0.45}
+  liftDip: 0.14
+  liftLean: 16
+  catchSquash: 0.2
   readyLean: 14
   blend: 10
 --- !u!1 &1833650662
@@ -26525,6 +26542,7 @@ MonoBehaviour:
     height: 56
   fadeHeight: 5
   amount: 0.7
+  softness: 0.3
   raised:
   - m_Center: {x: -16.45, y: -0.42000002, z: 0}
     m_Extent: {x: 0.45, y: 0.08, z: 16.9}
