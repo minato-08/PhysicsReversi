@@ -123,7 +123,9 @@ Shader "PhysicsReversi/ToonLit"
                 if (bands < 1.5h)
                     return 1.0h;
 
-                half s = _BandSoftness;
+                // At least one screen pixel wide, so a band edge on a small curve (a stone's rim)
+                // blends instead of stair-stepping.
+                half s = max(_BandSoftness, fwidth(light));
                 half denom = max(bands - 2.0h, 1.0h);
                 half q = 0.0h;
                 UNITY_UNROLL
@@ -168,7 +170,9 @@ Shader "PhysicsReversi/ToonLit"
                 // Flat faces (a resting stone's cap) would flash whole, so it stays on curved parts.
                 half3 h = normalize(mainLight.direction + v);
                 half edge = 1.0h - _HighlightSize;
-                half glint = smoothstep(edge - _BandSoftness * 0.2h, edge + _BandSoftness * 0.2h, saturate(dot(n, h)));
+                half nh = saturate(dot(n, h));
+                half aa = max(fwidth(nh), 0.002h);
+                half glint = smoothstep(edge - aa, edge + aa, nh);
                 glint *= 1.0h - smoothstep(0.996h, 0.9995h, abs(n.y));
                 glint *= _HighlightColor.a * mainLight.shadowAttenuation;
                 color = lerp(color, _HighlightColor.rgb, glint);

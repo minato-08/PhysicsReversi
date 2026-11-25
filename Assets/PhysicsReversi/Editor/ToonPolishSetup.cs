@@ -75,17 +75,18 @@ namespace PhysicsReversi.Editor
             return count;
         }
 
-        // Glossy plastic: stones, figures and toys catch a small hard highlight on their curves.
+        // Glossy plastic: figures and toys catch a small hard highlight on their curves. Stones
+        // get none: at the game camera's distance their rim is a few pixels wide and the glint
+        // broke into a dashed one-pixel line that made the edge look grainy (2026-11-25).
         static void Glints()
         {
             foreach (var name in new[] { "ToonStoneBlack", "ToonStoneWhite", "ToonPlayerBlack", "ToonPlayerWhite", "ToonAccent", "ToonBlockMint" })
             {
                 var material = AssetDatabase.LoadAssetAtPath<Material>(Folder + "/" + name + ".mat");
                 if (material == null) continue;
-                // The black stone keeps a dimmer glint so it never reads as grey from afar.
-                bool black = name == "ToonStoneBlack";
-                material.SetColor("_HighlightColor", new Color(1, 1, 1, black ? .75f : .9f));
-                material.SetFloat("_HighlightSize", name.StartsWith("ToonStone") ? .05f : .03f);
+                bool stone = name.StartsWith("ToonStone");
+                material.SetColor("_HighlightColor", new Color(1, 1, 1, stone ? 0 : .9f));
+                material.SetFloat("_HighlightSize", .03f);
                 EditorUtility.SetDirty(material);
             }
         }

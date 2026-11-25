@@ -55,14 +55,15 @@ namespace PhysicsReversi.Editor
                 }
 
             // A warm sun from the far side of the board, so shadows fall toward the camera and
-            // peek out from under the thin stones (ART.md "光"). Low enough for the shadows to show
-            // past the stones' rounded edges.
+            // peek out from under the thin stones (ART.md "光"). The stones' shadow is drawn by
+            // StoneShadows, so the sun only has to suit the figures: at 32 degrees their shadows
+            // ran long and started away from the feet, so the figures looked afloat (2026-11-25).
             foreach (var light in Object.FindObjectsByType<Light>())
             {
                 if (light.type != LightType.Directional) continue;
                 Undo.RecordObject(light, "Apply toon look"); Undo.RecordObject(light.transform, "Apply toon look");
                 light.color = Palette.Sun; light.intensity = 1.2f; light.shadows = LightShadows.Soft;
-                light.transform.rotation = Quaternion.Euler(32, 60, 0);
+                light.transform.rotation = Quaternion.Euler(52, 60, 0);
             }
             // Shadow sides take a cool sky above and a warm floor below instead of flat grey.
             RenderSettings.ambientMode = AmbientMode.Trilight;
