@@ -2,12 +2,14 @@ using UnityEngine;
 
 namespace PhysicsReversi.Walk
 {
-    // Draws a flat shadow on the table under every stone and every player figure (ART.md "接地影").
+    // Projects a flat shadow under every stone and every player figure (ART.md "接地影").
     // Both are too small near the table for the real shadow map: a stone's shadow reaches only
     // ~0.6 past its edge and the figures' feet cast none at all, both lost to the shadow bias
     // (measured in Play, 2026-11-25). Their own shadow casting is turned off in the toon scene,
     // so this is their only shadow. A stone's falls along the sun, so a lifted stone's shadow
     // slides away; a figure's sits right under its feet, to show it standing on the table.
+    // Each shadow is a box drawn with GroundShadow.shader, which darkens the up-facing surfaces
+    // inside it (a screen-space decal): the table, the top of the board frame, the cell marks.
     // Looks only: it reads transforms and never touches bodies, controllers or the rules.
     public sealed class ContactShadows : MonoBehaviour
     {
@@ -19,27 +21,25 @@ namespace PhysicsReversi.Walk
         [Tooltip("Above this height (world) a lifted stone's shadow has shrunk and faded fully.")]
         public float fadeHeight = 5f;
         [Range(0, 1)] public float amount = .7f;
-        [Tooltip("Decor standing up from the table (the board frame). The part of a shadow over one is drawn again on its top, since the table-level shadow is buried inside it.")]
+        [Tooltip("Decor standing up from the table (the board frame). The shadow boxes reach up to its top, and a stone resting on it measures its height from there.")]
         public Bounds[] raised = new Bounds[0];
         [Header("Player figures")]
         [Tooltip("Half width and half depth of the shadow under a figure (world). Wider than the torso (0.68), or the body hides it from the camera.")]
         public Vector2 figureSize = new Vector2(1.1f, .95f);
         [Range(0, 1)] public float figureAmount = .9f;
 
-        // Above the table top. At 0.015 the shadows vanished on the cream table (not on the board
-        // cells, 0.01 higher) and showed from 0.03; the table is truly at -0.5, so the cause is in
-        // the depth test and not yet found (2026-11-25). Shadows lie over the recognition marks.
-        const float Lift = .04f;
+        // How far the boxes reach below the table and above the highest raised top. Shoes and
+        // stone sides inside the box are not shaded (they do not face up), and stone tops (0.36
+        // above the table) stay above it.
+        const float Below = .1f, Above = .06f;
         CarryStone[] stones;
         WalkPlayer[] figures;
         Transform[] shadows;   // stones first, then figures
         Renderer[] renderers;
-        Transform[] tops;      // the same shadows again, on the top of the frame bar they overlap
-        Renderer[] topRenderers;
         MaterialPropertyBlock block;
         Light sun;
+        float boxBottom, boxHeight;
         static readonly int AmountId = Shader.PropertyToID("_Amount");
-        static readonly int ClipRectId = Shader.PropertyToID("_ClipRect");
 
         void Start()
         {
@@ -47,15 +47,15 @@ namespace PhysicsReversi.Walk
             figures = FindObjectsByType<WalkPlayer>();
             int count = stones.Length + figures.Length;
             shadows = new Transform[count]; renderers = new Renderer[count];
-            tops = new Transform[count]; topRenderers = new Renderer[count];
-            var mesh = Disc(32);
+            var mesh = Box();
             for (int i = 0; i < count; i++)
             {
                 string owner = i < stones.Length ? stones[i].name : figures[i - stones.Length].name;
                 renderers[i] = Make("Shadow " + owner, mesh, out shadows[i]);
-                topRenderers[i] = Make("Shadow on frame " + owner, mesh, out tops[i]);
-                topRenderers[i].enabled = false;
             }
+            float top = groundHeight;
+            foreach (var b in raised) top = Mathf.Max(top, b.max.y);
+            boxBottom = groundHeight - Below; boxHeight = top + Above - boxBottom;
             block = new MaterialPropertyBlock();
             foreach (var light in FindObjectsByType<Light>()) if (light.type == LightType.Directional) sun = light;
         }
@@ -102,40 +102,19 @@ namespace PhysicsReversi.Walk
             }
         }
 
-        // One shadow on the table, plus a copy on the top of the frame bar it overlaps most, cut
-        // to that bar so it never hangs in the air. Where the table-level one runs under the bar
-        // the bar hides it, so together they read as one shadow draped over the frame.
+        // The shadow's box: the disc's footprint across, from just under the table to just over the frame.
         void Place(int i, Vector3 at, Quaternion turn, float across, float along, float shade)
         {
-            var scale = new Vector3(across, 1, along);
             block.SetFloat(AmountId, shade);
-            block.SetVector(ClipRectId, new Vector4(-1e5f, -1e5f, 1e5f, 1e5f));
             if (!renderers[i].enabled) renderers[i].enabled = true;
-            shadows[i].SetPositionAndRotation(new Vector3(at.x, groundHeight + Lift, at.z), turn);
-            shadows[i].localScale = scale;
+            shadows[i].SetPositionAndRotation(new Vector3(at.x, boxBottom + boxHeight * .5f, at.z), turn);
+            shadows[i].localScale = new Vector3(across * 2, boxHeight, along * 2);
             renderers[i].SetPropertyBlock(block);
-
-            float reach = Mathf.Max(across, along), best = 0; int bar = -1;
-            for (int b = 0; b < raised.Length; b++)
-            {
-                float w = Mathf.Min(at.x + reach, raised[b].max.x) - Mathf.Max(at.x - reach, raised[b].min.x);
-                float d = Mathf.Min(at.z + reach, raised[b].max.z) - Mathf.Max(at.z - reach, raised[b].min.z);
-                if (w > 0 && d > 0 && w * d > best) { best = w * d; bar = b; }
-            }
-            bool onFrame = bar >= 0;
-            if (topRenderers[i].enabled != onFrame) topRenderers[i].enabled = onFrame;
-            if (!onFrame) return;
-            var top = raised[bar];
-            tops[i].SetPositionAndRotation(new Vector3(at.x, top.max.y + Lift, at.z), turn);
-            tops[i].localScale = scale;
-            block.SetVector(ClipRectId, new Vector4(top.min.x, top.min.z, top.max.x, top.max.z));
-            topRenderers[i].SetPropertyBlock(block);
         }
 
         void Hide(int i)
         {
             if (renderers[i].enabled) renderers[i].enabled = false;
-            if (topRenderers[i].enabled) topRenderers[i].enabled = false;
         }
 
         Renderer Make(string name, Mesh mesh, out Transform t)
@@ -159,17 +138,17 @@ namespace PhysicsReversi.Walk
             return y;
         }
 
-        // A unit disc (radius 1) in the XZ plane, facing up.
-        static Mesh Disc(int sides)
+        // A unit cube (-0.5..0.5). Only its back faces are drawn; the shader does the rest.
+        static Mesh Box()
         {
-            var vertices = new Vector3[sides + 1]; var triangles = new int[sides * 3];
-            for (int i = 0; i < sides; i++)
+            var vertices = new Vector3[8];
+            for (int v = 0; v < 8; v++) vertices[v] = new Vector3((v & 1) - .5f, ((v >> 1) & 1) - .5f, ((v >> 2) & 1) - .5f);
+            var triangles = new[]
             {
-                float a = i * Mathf.PI * 2 / sides;
-                vertices[i + 1] = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
-                triangles[i * 3] = 0; triangles[i * 3 + 1] = (i + 1) % sides + 1; triangles[i * 3 + 2] = i + 1;
-            }
-            var mesh = new Mesh { name = "Contact shadow disc", vertices = vertices, triangles = triangles };
+                0, 2, 3, 0, 3, 1,  4, 5, 7, 4, 7, 6,  0, 1, 5, 0, 5, 4,
+                2, 6, 7, 2, 7, 3,  0, 4, 6, 0, 6, 2,  1, 3, 7, 1, 7, 5,
+            };
+            var mesh = new Mesh { name = "Contact shadow box", vertices = vertices, triangles = triangles };
             mesh.RecalculateBounds();
             return mesh;
         }

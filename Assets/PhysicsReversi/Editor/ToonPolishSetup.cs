@@ -2,6 +2,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using PhysicsReversi.Walk;
 
 namespace PhysicsReversi.Editor
@@ -170,13 +171,21 @@ namespace PhysicsReversi.Editor
                 shadows.groundHeight = b.max.y;
                 shadows.tableArea = new Rect(b.min.x, b.min.z, b.size.x, b.size.z);
             }
-            // Players start right beside the frame; the part of their shadow over it is drawn on its top.
+            // Players start right beside the frame; the shadow boxes reach up to its top.
             var frame = GameObject.Find(FrameName);
             if (frame != null)
             {
                 var bars = frame.GetComponentsInChildren<Renderer>();
                 shadows.raised = new Bounds[bars.Length];
                 for (int i = 0; i < bars.Length; i++) shadows.raised[i] = bars[i].bounds;
+            }
+            // The shadows read the scene depth. The PC settings already make it; the Mobile ones
+            // (WebGL) do not, so the game camera asks for it itself.
+            foreach (var camera in Object.FindObjectsByType<Camera>())
+            {
+                var data = camera.GetUniversalAdditionalCameraData();
+                Undo.RecordObject(data, "Build contact shadows");
+                data.requiresDepthOption = CameraOverrideOption.On;
             }
         }
 
