@@ -15,7 +15,7 @@ namespace PhysicsReversi.Editor
     {
         const string SceneName = "PhysicsReversiToon";
         const string Folder = "Assets/PhysicsReversi/WalkAssets/Toon";
-        const string ShaderName = "PhysicsReversi/ToonLit";
+        public const string ShaderName = "PhysicsReversi/ToonLit";
 
         [MenuItem("Physics Reversi/Walk/Apply Toon Look (Trial)")]
         public static void Apply()
@@ -92,7 +92,8 @@ namespace PhysicsReversi.Editor
             Debug.Log("Toon look applied: " + swapped + " renderers now use " + ShaderName + ".");
         }
 
-        static Material Toon(Shader shader, string name, Color color, float outline)
+        // Creates or refreshes one toon material under WalkAssets/Toon. Shared with the other toon menus.
+        public static Material Toon(Shader shader, string name, Color color, float outline)
         {
             if (!AssetDatabase.IsValidFolder(Folder)) AssetDatabase.CreateFolder("Assets/PhysicsReversi/WalkAssets", "Toon");
             string path = Folder + "/" + name + ".mat";

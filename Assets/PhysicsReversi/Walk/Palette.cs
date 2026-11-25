@@ -15,6 +15,7 @@ namespace PhysicsReversi.Walk
         public static readonly Color Shadow = Hex(0x9990CC);
         public static readonly Color Outline = Hex(0x33284A);
         public static readonly Color Accent = Hex(0xFFC93C);
+        public static readonly Color Face = Hex(0xFFE6CC);
         public static readonly Color Sun = Hex(0xFFF2DC);
         public static readonly Color SkyTop = Hex(0xBFE3F5);
         public static readonly Color SkyHorizon = Hex(0xFDF1DC);
