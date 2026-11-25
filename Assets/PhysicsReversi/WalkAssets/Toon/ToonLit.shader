@@ -13,6 +13,9 @@ Shader "PhysicsReversi/ToonLit"
         _OutlineColor ("Outline Color", Color) = (0.2, 0.157, 0.29, 1)
         _OutlineWidth ("Outline Width (px)", Range(0, 10)) = 2
         _ReceiveAmbient ("Receive Ambient", Range(0, 1)) = 0.6
+        // Per-renderer feedback, driven from script through a MaterialPropertyBlock (ToonFx).
+        [HideInInspector] _Pop ("Pop Scale", Vector) = (1, 1, 1, 0)
+        [HideInInspector] _FlashColor ("Flash Color (A = amount)", Color) = (1, 1, 1, 0)
     }
 
     SubShader
@@ -39,7 +42,13 @@ Shader "PhysicsReversi/ToonLit"
             half4 _OutlineColor;
             float _OutlineWidth;
             half _ReceiveAmbient;
+            float4 _Pop;
+            half4 _FlashColor;
         CBUFFER_END
+
+        // Squash and stretch for the look only: every pass scales the drawn vertices about the
+        // object origin, so the outline and shadow follow while the collider never changes.
+        float3 PopOS(float3 positionOS) { return positionOS * _Pop.xyz; }
 
         TEXTURE2D(_BaseMap);
         SAMPLER(sampler_BaseMap);
@@ -94,7 +103,7 @@ Shader "PhysicsReversi/ToonLit"
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-                VertexPositionInputs pos = GetVertexPositionInputs(input.positionOS.xyz);
+                VertexPositionInputs pos = GetVertexPositionInputs(PopOS(input.positionOS.xyz));
                 output.positionCS = pos.positionCS;
                 output.positionWS = pos.positionWS;
                 output.normalWS = half3(TransformObjectToWorldNormal(input.normalOS));
@@ -151,6 +160,7 @@ Shader "PhysicsReversi/ToonLit"
                 half rim = pow(1.0h - saturate(dot(n, v)), _RimPower) * _RimColor.a * q;
                 color += _RimColor.rgb * rim;
 
+                color = lerp(color, _FlashColor.rgb, _FlashColor.a);
                 color = MixFog(color, input.fogFactor);
                 return half4(color, 1.0h);
             }
@@ -197,7 +207,7 @@ Shader "PhysicsReversi/ToonLit"
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-                float4 positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                float4 positionCS = TransformObjectToHClip(PopOS(input.positionOS.xyz));
                 float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
                 float2 normalCS = mul((float3x3)GetWorldToHClipMatrix(), normalWS).xy;
                 float len = length(normalCS);
@@ -270,7 +280,7 @@ Shader "PhysicsReversi/ToonLit"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
 
-                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 positionWS = TransformObjectToWorld(PopOS(input.positionOS.xyz));
                 float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
             #if _CASTING_PUNCTUAL_LIGHT_SHADOW
                 float3 lightDirectionWS = normalize(_LightPosition - positionWS);
@@ -325,7 +335,7 @@ Shader "PhysicsReversi/ToonLit"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.positionCS = TransformObjectToHClip(PopOS(input.positionOS.xyz));
                 return output;
             }
 
@@ -375,7 +385,7 @@ Shader "PhysicsReversi/ToonLit"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.positionCS = TransformObjectToHClip(PopOS(input.positionOS.xyz));
                 output.normalWS = NormalizeNormalPerVertex(TransformObjectToWorldNormal(input.normalOS));
                 return output;
             }

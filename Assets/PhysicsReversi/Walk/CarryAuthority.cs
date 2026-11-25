@@ -39,6 +39,9 @@ namespace PhysicsReversi.Walk
         [Tooltip("A reserve slot counts as occupied when another stone is within this distance.")]
         [Min(.1f)] public float slotClearance = 1.5f;
         public event System.Action<CarryStone, int> StonePlaced;
+        // For feedback only (StoneFeel): a stone was taken in hand, or let go as a throw at this speed.
+        public event System.Action<WalkPlayer, CarryStone> StoneGrabbed;
+        public event System.Action<WalkPlayer, CarryStone, float> StoneThrown;
         WalkBoardRecognition board;
         void FixedUpdate()
         {
@@ -94,7 +97,9 @@ namespace PhysicsReversi.Walk
                     board != null ? board.edgeFaceTolerance : .1f);
             }
             if (!stone.TryClaim(actor, allowPlacedStonePickup, allowOpponentStonePickup, lockConfirmedStones)) return false;
-            actor.Attach(stone, turnHeldStoneToHolderColor); return true;
+            actor.Attach(stone, turnHeldStoneToHolderColor);
+            StoneGrabbed?.Invoke(actor, stone);
+            return true;
         }
         // The action pressed while carrying. With throwing on, nothing leaves the hand yet:
         // TryRelease, when the action is let go, puts the stone down or throws it.
@@ -114,7 +119,12 @@ namespace PhysicsReversi.Walk
             int owner = actor.playerId;
             float charge = Charge(actor);
             if (charge < 0) actor.Detach();
-            else actor.Detach(actor.transform.forward * (float)StoneThrow.Speed(charge, minThrowSpeed, maxThrowSpeed));
+            else
+            {
+                float speed = (float)StoneThrow.Speed(charge, minThrowSpeed, maxThrowSpeed);
+                actor.Detach(actor.transform.forward * speed);
+                StoneThrown?.Invoke(actor, stone, speed);
+            }
             StonePlaced?.Invoke(stone, owner);
             return true;
         }

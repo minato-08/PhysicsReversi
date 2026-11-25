@@ -2865,6 +2865,7 @@ GameObject:
   - component: {fileID: 266304603}
   - component: {fileID: 266304605}
   - component: {fileID: 266304606}
+  - component: {fileID: 266304607}
   m_Layer: 0
   m_Name: Rules and local input
   m_TagString: Untagged
@@ -3117,6 +3118,32 @@ MonoBehaviour:
   confirmCapturingStones: 1
   lastResult: Waiting for a placement
   lastCaptureCount: 0
+--- !u!114 &266304607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 266304601}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: da30cf58ada9d4e4ead1fa405851d89d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.StoneFeel
+  authority: {fileID: 266304604}
+  particleMaterial: {fileID: 2100000, guid: 9960dcce97b6942d68cd5909a0e882b2, type: 2}
+  grabPop: {x: 1.12, y: 1.8, z: 1.12}
+  minImpactSpeed: 2.5
+  fullImpactSpeed: 12
+  landPop: {x: 1.1, y: 0.55, z: 1.1}
+  dustCount: 5
+  impactCooldown: 0.12
+  flipPop: {x: 1.18, y: 1.6, z: 1.18}
+  flipFlash: 0.55
+  sparkleCount: 8
+  rippleDelay: 0.05
+  confirmPop: {x: 1.04, y: 1.35, z: 1.04}
+  confirmFlash: 0.3
 --- !u!1001 &271095396
 PrefabInstance:
   m_ObjectHideFlags: 0

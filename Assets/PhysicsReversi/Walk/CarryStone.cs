@@ -17,6 +17,11 @@ namespace PhysicsReversi.Walk
         public WalkPlayer Holder { get; private set; }
         public Rigidbody Body { get; private set; }
         public bool IsFlipping { get; private set; }
+        // For feedback only (StoneFeel). Rules never listen to these.
+        public static event System.Action<CarryStone, Collision> Impacted;
+        public static event System.Action<CarryStone> FlipStarted;
+        public static event System.Action<CarryStone> FlipEnded;
+        public static event System.Action<CarryStone> BecameConfirmed;
         public MotionOrigin Motion { get; private set; }
         public void RegisterPlayerMotion() => Motion = new MotionOrigin(true);
         readonly StoneConfirmation confirmation = new StoneConfirmation();
@@ -28,12 +33,19 @@ namespace PhysicsReversi.Walk
         // recognition text. cell is -1 when the stone is not recognized.
         public void TickConfirmation(int cell, float deltaSeconds, float confirmSeconds, float loosenSeconds)
         {
+            bool was = Confirmed;
             if (status != StoneStatus.OnBoard) confirmation.Reset();
             else confirmation.Tick(cell, IsFlipping, deltaSeconds, confirmSeconds, loosenSeconds);
+            if (Confirmed && !was) BecameConfirmed?.Invoke(this);
             if (Confirmed) recognition += " / confirmed";
         }
         // Called by the capture controller only: a stone at the end of a line that captured is committed on the spot.
-        public void ConfirmAt(int cell) { if (status == StoneStatus.OnBoard) confirmation.ConfirmNow(cell); }
+        public void ConfirmAt(int cell)
+        {
+            if (status != StoneStatus.OnBoard) return;
+            bool was = Confirmed; confirmation.ConfirmNow(cell);
+            if (Confirmed && !was) BecameConfirmed?.Invoke(this);
+        }
         // How firmly the stone is held in its cell, 0 to 1. Held stones are heavier, and so harder to shove.
         public float Hold { get; private set; }
         float baseMass, holdFactor = 1, carriedWeight = 1;
@@ -59,6 +71,7 @@ namespace PhysicsReversi.Walk
             if (IsFlipping || Body == null || Body.isKinematic || status != StoneStatus.OnBoard) return;
             Motion = new MotionOrigin(false);
             StartCoroutine(FlipBody(up, axis, height, duration));
+            FlipStarted?.Invoke(this);
         }
         IEnumerator FlipBody(Vector3 up, Vector3 axis, float height, float duration)
         {
@@ -85,6 +98,7 @@ namespace PhysicsReversi.Walk
             }
             Body.angularVelocity = Vector3.zero;
             IsFlipping = false;
+            FlipEnded?.Invoke(this);
         }
         readonly HashSet<Collider> boardContacts = new HashSet<Collider>();
         [SerializeField] string recognition = "Not checked";
@@ -109,7 +123,7 @@ namespace PhysicsReversi.Walk
             Body.position = position; Body.rotation = rotation;
             Body.linearVelocity = Vector3.zero; Body.angularVelocity = Vector3.zero;
         }
-        void OnCollisionEnter(Collision collision) { TrackBoardContact(collision); TrackMotion(collision); }
+        void OnCollisionEnter(Collision collision) { TrackBoardContact(collision); TrackMotion(collision); Impacted?.Invoke(this, collision); }
         void OnCollisionStay(Collision collision) { TrackBoardContact(collision); TrackMotion(collision); }
         void TrackMotion(Collision collision)
         {
