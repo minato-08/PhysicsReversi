@@ -11,6 +11,7 @@ Shader "PhysicsReversi/GroundShadow"
     {
         _ShadowTint ("Shadow Tint", Color) = (0.6, 0.565, 0.8, 1)
         _Amount ("Amount", Range(0, 1)) = 0.8
+        _Softness ("Softness", Range(0, 1)) = 0.4
     }
 
     SubShader
@@ -38,6 +39,7 @@ Shader "PhysicsReversi/GroundShadow"
             CBUFFER_START(UnityPerMaterial)
                 half4 _ShadowTint;
                 half _Amount;
+                half _Softness;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; };
@@ -71,9 +73,10 @@ Shader "PhysicsReversi/GroundShadow"
                 float3 normal = normalize(cross(ddy(world), ddx(world)));
                 clip(abs(normal.y) - 0.7);
 
-                // The disc, with an edge one pixel soft so it does not stair-step.
+                // The disc. Its edge fades over the outer _Softness of the radius, and never over
+                // less than a pixel, so it does not stair-step.
                 float r = length(local.xz) * 2;
-                float edge = max(fwidth(r), 1e-4);
+                float edge = max(max(fwidth(r), 1e-4), _Softness);
                 half inside = 1 - smoothstep(1 - edge, 1, r);
                 clip(inside - 0.001);
 

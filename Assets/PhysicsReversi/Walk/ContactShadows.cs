@@ -21,6 +21,8 @@ namespace PhysicsReversi.Walk
         [Tooltip("Above this height (world) a lifted stone's shadow has shrunk and faded fully.")]
         public float fadeHeight = 5f;
         [Range(0, 1)] public float amount = .7f;
+        [Tooltip("How much of the shadow's radius the edge fades over. The fade starts at the sharp edge's place and reaches outward. 0 is a sharp edge.")]
+        [Range(0, .8f)] public float softness = .3f;
         [Tooltip("Decor standing up from the table (the board frame). The shadow boxes reach up to its top, and a stone resting on it measures its height from there.")]
         public Bounds[] raised = new Bounds[0];
         [Header("Player figures")]
@@ -39,7 +41,7 @@ namespace PhysicsReversi.Walk
         MaterialPropertyBlock block;
         Light sun;
         float boxBottom, boxHeight;
-        static readonly int AmountId = Shader.PropertyToID("_Amount");
+        static readonly int AmountId = Shader.PropertyToID("_Amount"), SoftnessId = Shader.PropertyToID("_Softness");
 
         void Start()
         {
@@ -102,13 +104,17 @@ namespace PhysicsReversi.Walk
             }
         }
 
-        // The shadow's box: the disc's footprint across, from just under the table to just over the frame.
+        // The shadow's box: the disc's footprint across (a little wider for the soft edge), from just under the table to just over the frame.
         void Place(int i, Vector3 at, Quaternion turn, float across, float along, float shade)
         {
             block.SetFloat(AmountId, shade);
+            block.SetFloat(SoftnessId, softness);
             if (!renderers[i].enabled) renderers[i].enabled = true;
             shadows[i].SetPositionAndRotation(new Vector3(at.x, boxBottom + boxHeight * .5f, at.z), turn);
-            shadows[i].localScale = new Vector3(across * 2, boxHeight, along * 2);
+            // Grown so the soft band starts at the old sharp edge and fades outward: a stone shows
+            // only a thin rim of shadow past its side, and a band reaching inward hid it.
+            float grow = 1 / Mathf.Max(.1f, 1 - softness);
+            shadows[i].localScale = new Vector3(across * 2 * grow, boxHeight, along * 2 * grow);
             renderers[i].SetPropertyBlock(block);
         }
 
