@@ -4,13 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## プロジェクト概要
 
-物理演算で石を扱うリバーシのUnity試作。Unity 6、URP、Input Systemを使う。コミット済みのUnityは`6000.4.3f1`で、環境によってはより新しい版で開いている。
+物理演算で石を扱うリバーシのUnity試作。Unity 6、URP、Input Systemを使う。Unityは`6000.6.4f1`（2026-11-24に`6000.4.3f1`から上げた）。
 
 プレイヤーが歩き回り、石を掴んで盤に置く。石の所属は**その時点で上を向いている面の色**で決まり、静止は待たない。
 
 現状の仕様、操作、調整項目は`README.md`（日本語）に、目指す仕様と未確定事項は`SPEC.md`にまとめてある。ルールを変えるときは両方を更新する。
 
-複数のPCから作業するため、`CLAUDE.md`などのコンテキストファイルはコミットしてPushしてよい。`ProjectSettings/ProjectVersion.txt`は、PCごとのUnityパッチ版の違いで書き換わるので、意図しない限りコミットしない。
+複数のPCから作業するため、`CLAUDE.md`などのコンテキストファイルはコミットしてPushしてよい。`ProjectSettings/ProjectVersion.txt`は、版をそろえ直すとき以外はコミットしない。別のPCも`6000.6.4f1`で開く。
+
+## 禁止事項
+
+- `.unity` `.prefab` `.asset` `.mat` `.meta` `.physicMaterial`と`ProjectSettings/`を、テキストとして直接編集しない。Editor経由（セットアップメニューか`unity command`）で変える。Edit/Writeはフック（`.claude/hooks/guard-unity-files.sh`）で止まる。
+- `Library/`を消さない。ユーザーが始めたPlayを止めない。Editorを勝手に閉じない。
 
 ## 進め方（シーン・コミット・ブランチ）
 
@@ -27,13 +32,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CLIビルドスクリプトやUnity Test Frameworkのテストはない。検証はUnityエディタ上で行う。
 
+- コードを変えたら`unity recompile --project-path . --format json`でコンパイルを確かめる。終了コードは0が成功、6がコンパイルエラー、7がEditorに未接続。未コミットの`.cs`があると、Stopフック（`.claude/hooks/check-compile.sh`）が応答の終わりに自動で実行する。macOSでは`unity`がPATHにないので`~/.unity/bin/unity`で呼ぶ。
 - **ルールテスト**は、メニュー`Physics Reversi → Run Rule Checks`で実行する。メニューの実装は`Assets/PhysicsReversi/Editor/PrototypeSetup.cs`にある。`RulesChecks.Run()`が純粋ロジックを検査し、失敗時は`"FAILED: <名前>"`の例外を投げる。成功時は通過件数をログに出力する。
   - バッチ実行するコマンドは`Unity.exe -batchmode -projectPath . -executeMethod PhysicsReversi.Editor.PrototypeSetup.RunRuleChecks -quit -logFile -`。`Unity.exe`はWindowsの例で、macOSでは`/Applications/Unity/Hub/Editor/<版>/Unity.app/Contents/MacOS/Unity`を使う。
   - 個別のテストを実行する仕組みはない。`RulesChecks.cs`は、1本のメソッドに`Check(...); checks++;`を並べた形式なので、テストを追加するときもこの形式に合わせる。このファイルはEditorフォルダにあるが、namespaceは`PhysicsReversi`。
-- コンパイルエラーの確認、Play、シーン操作は、Unity CLI（`unity`コマンド、Unityプラグインの`unity:unity-cli`スキル）で、開いているエディタを操作して行う。接続は`unity status`で確認する。プロジェクト側に`com.unity.pipeline`パッケージが必要。Coplay MCPは使わない。
-  - PlayをCLIから検証するとき、エディタが最前面にないとゲームが進まない。Play開始後に`unity command eval 'UnityEngine.Application.runInBackground = true; return 1;'`を実行する。この値はプロジェクト設定（`ProjectSettings.asset`の`runInBackground`）に残る。検証が終わったら、編集モードで`UnityEditor.PlayerSettings.runInBackground = false; UnityEditor.AssetDatabase.SaveAssets();`を実行して戻す。画面撮影には`capture_game_view --source screen`を使う。保存先は`Assets/`配下に限られるので、撮影後に画像を`.meta`ごと削除する。
-  - `eval`から呼べるのは`public`なメンバーだけ。`internal`は別アセンブリ扱いで見えない。キーやゲームパッドの入力はCLIから送れないので、入力そのものは手で確認する。
-  - Play中でないときに`eval`でシーン上のオブジェクトの値を書き換えると、編集中のシーンが変わってしまう。検証用の`eval`は、先頭で`EditorApplication.isPlaying`を確認する。
+- コンパイルエラーの確認、Play、シーン操作は、Unity CLI（`unity`コマンド、Unityプラグインの`unity:unity-cli`スキル）で、開いているエディタを操作して行う。接続は`unity status`で確認する。プロジェクト側に`com.unity.pipeline`パッケージ（1.0.1）が必要。Coplay MCPは使わない。
+  - エディタはUnity Hubから開く。CLIの`unity open`で開くと、エディタがUnityアカウントにサインインしていない状態で起動し、パッケージのダウンロードが失敗する（2026-11-25に、Pipelineパッケージの更新が入らず接続が切れた）。Claude Codeのシェルからは、キーチェーンにあるCLIのサインイン情報を読めない。
+  - 命令の名前は`unity command --query <語>`で調べる。Pipeline 1.0で名前と引数が変わった（引数はkebab-case）。
+  - Playは`unity command editor.playmode start`で始め、`editor.playmode stop`で止める。startは、Play中だけRun In Backgroundをオンにするので、エディタが背面にあってもゲームが進む。プロジェクト設定は書き換わらない。C#の実行は`unity command script eval --code '<式>'`で、値をそのまま返し、失敗すると終了コード6になる。画面撮影には`capture game_view --source screen`を使う。保存先が`Assets/`配下になったときは、撮影後に画像を`.meta`ごと削除する。
+  - `script eval`から呼べるのは`public`なメンバーだけ。`internal`は別アセンブリ扱いで見えない（`--internals true`はUnity本体のinternalにしか効かない）。キーやゲームパッドの入力はCLIから送れないので、入力そのものは手で確認する。
+  - Play中でないときに`script eval`でシーン上のオブジェクトの値を書き換えると、編集中のシーンが変わってしまう。検証用の`script eval`は、先頭で`EditorApplication.isPlaying`を確認する。
   - エディタが背面にあると、Playは毎秒約10フレームになる。`WalkPlayer`は`Update`で動くので、歩く、押す、持って回る、が絡む測定は、Play開始後に`UnityEngine.Time.captureFramerate = 60`を設定して行う。設定すると毎秒60フレーム相当で進み、実時間では遅くなる。Playを止めると元に戻る。設定せずに測った「体で押す強さ70」は、実際には何も押せない値だった。
   - スクリプトの初期値を変えても、開いたままのシーンのオブジェクトは、追加された時点の値を持ち続ける。初期値を変えたら、シーンを開き直すか、平面版を作り直してから測る。
 - 見た目、反転の動き、衝突結果は、Playでの手動確認が必要。
@@ -70,7 +78,8 @@ asmdefはなく、コードはすべて`Assembly-CSharp`か`Assembly-CSharp-Edit
 - `LocalWalkInput`は、1台・1画面で2人を同時に操作する入力。`players[0]`が黒（1台目のゲームパッド、WASD+F）、`players[1]`が白（2台目、IJKL+H）。操作は移動方向と、掴む・離すの1ボタンだけ。移動は固定カメラ`view`を基準にする。照準はなく、正面のいちばん近い掴める石（`Target(index)`）を`CarryAuthority`に渡す。ボタンは、押した時点と離した時点の両方を伝えるだけで、置くか投げるかは`CarryAuthority`が決める。
 - `AimHud`は表示専用で、プレイヤーごとに、掴む対象の石の輪郭を強調する。`WalkAssets/SilhouetteHighlight.shader`をマスク、線、塗りの3マテリアルで使い、輪郭の内側に線を描く。
 - カメラはスクリプトなしの固定で、盤の横から見下ろす。黒が左、白が右。
-- `WalkPlayer`は、持った石を動的なRigidbodyのまま、`carryPoint`までの水平距離（腕の長さ）を保って体の周りを回り込ませる。持ち石は`WalkPlayer.carryPoint`（正面）に浮く。目標は「石のいまの方位を、手の方位へ向けて少し回した位置」で、そこへ1ステップで届く速度を与える。以前の「距離 × 8」の追従は、遅れが残り、石が体を横切った。掴んだ直後だけは、従来の追従で手元へ寄せる（`arriving`）。構えた石は`CarryStone.SetCarriedWeight`で軽くし、`readyForce`の上限つきで加速させる。軽いので動き出しが速く、当たりが柔らかい。押す強さは力の上限だけで決まる。石が阻まれて付いてこられないときは、`StayWithStone`がプレイヤーの移動を腕の長さ±0.4に抑える。
+- `WalkPlayer`は、持った石を動的なRigidbodyのまま、`carryPoint`までの水平距離（腕の長さ）を保って体の周りを回り込ませる。持ち石は`WalkPlayer.carryPoint`（正面）に浮く。目標は「石のいまの方位を、手の方位へ向けて少し回した位置」で、そこへ1ステップで届く速度を与える。以前の「距離 × 8」の追従は、遅れが残り、石が体を横切った。掴んだ直後（`arriving`）は、0.16〜0.26秒で、体の周りを回る弧を描いて手へ持ち上げる。動き出しは遅く、手に入る直前がいちばん速い（重さを見せるため。2026-11-25）。手に入ると`StoneCaught`を出す。手にある石は、手の加速度で揺れるばね（`sway`）の分だけ遅れて傾き、歩くと人形の手と一緒に上下する（`HoldBob`）。構えた石は`CarryStone.SetCarriedWeight`で軽くし、`readyForce`の上限つきで加速させる。軽いので動き出しが速く、当たりが柔らかい。押す強さは力の上限だけで決まる。石が阻まれて付いてこられないときは、`StayWithStone`がプレイヤーの移動を腕の長さ±0.4に抑える。
+- `WalkMatch`（平面版のシーンの`Match HUD`）は、1局の流れを持つ。カウントダウン、制限時間、時間切れ、盤の石が止まるのを待って数える、結果、リスタート（シーンの読み込み直し）。対局中以外は`LocalWalkInput`を無効にする。時間切れのときの持ち石は`CarryAuthority.ForceDrop`で落とす。セットアップは`MatchSetup.cs`のメニュー`Add Match Flow (Flat)`。
 - `CarryStone`は、石ごとの状態を持つ。`Owner Id`（上面から決まる盤上の所属）と`Reserve Owner Id`（予備石の持ち主）は別々に管理する。`Confirmed`は確定した石かどうかを表す。`StoneConfirmation`を1つ持ち、離すときと予備へ戻すときにリセットする。石の重さも`CarryStone`が決める。元の重さに、認識処理が渡す固定の強さ（`SetHold`）か、持ち主が渡す軽さ（`SetCarriedWeight`。構えている間だけ）を掛ける。`Rigidbody.mass`を外から直接書き換えないこと。
 
 #### エディタセットアップ層
@@ -108,4 +117,4 @@ asmdefはなく、コードはすべて`Assembly-CSharp`か`Assembly-CSharp-Edit
 
 ## 未実装（READMEより）
 
-手番、対局終了、微振動の強制収束、通信同期は未実装。オンラインは当面の目標外。盤は平面に決まった。確定した石の動きにくさと、確定した石を崩す手段は、平面版のシーンにあり、値は調整中。黒(1)と白(2)の2人が、1台のPCで同時に操作する。
+手番、微振動の強制収束、通信同期は未実装。対局終了は、制限時間（3分）だけが平面版のシーンにある。オンラインは当面の目標外。盤は平面に決まった。確定した石の動きにくさと、確定した石を崩す手段は、平面版のシーンにあり、値は調整中。黒(1)と白(2)の2人が、1台のPCで同時に操作する。
