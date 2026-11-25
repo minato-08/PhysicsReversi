@@ -10,8 +10,21 @@ namespace PhysicsReversi.Walk
         public float moveSpeed = 6;
         public float turnSpeed = 540;
         public float pushStrength = 35;
-        public float carryFollowSpeed = 8;
-        public float maxCarrySpeed = 12;
+        [Header("Pick up (ART.md 手ざわり)")]
+        [Tooltip("Seconds a picked-up stone takes to reach the hand: from right in front, and from the far end of the reach.")]
+        public Vector2 liftSeconds = new Vector2(.16f, .26f);
+        [Tooltip("How far above the straight line the stone rises on its way to the hand.")]
+        public float liftArc = .8f;
+        [Header("Hold sway")]
+        [Tooltip("How fast the held stone swings back to the hand (angular frequency, rad/s). Lower is looser.")]
+        public float swayStiffness = 11;
+        [Range(0, 1)] public float swayDamping = .35f;
+        [Tooltip("How strongly the hand's acceleration throws the stone off; 1 is a free pendulum.")]
+        [Range(0, 1)] public float swayAmount = .85f;
+        [Tooltip("Farthest the held stone lags behind the hand.")]
+        public float swayLimit = .4f;
+        [Tooltip("Degrees the stone tilts per unit it lags.")]
+        public float swayTilt = 30;
         [Tooltip("The player cannot walk past the edges of this collider's bounds (the table top). Stones can still fall off. Empty: no limit.")]
         public Collider walkableArea;
         public CarryStone HeldStone { get; private set; }
@@ -30,9 +43,17 @@ namespace PhysicsReversi.Walk
         }
         // Just picked up, the stone is still on its way to the hand.
         bool arriving;
-        // How far the stone may be from the hand before the holder is held back, and how
-        // close a picked-up stone comes before it counts as in the hand.
-        const float HoldSlack = .4f, ArriveDistance = .15f;
+        public bool Arriving => HeldStone != null && arriving;
+        // Raised once the picked-up stone lands in the hand.
+        public static event System.Action<WalkPlayer, CarryStone> StoneCaught;
+        // Set each frame by the figure's animation: how far its hands bob with the walk, so a
+        // held stone bobs with them instead of floating still over a bouncing body.
+        public float HoldBob { get; set; }
+        Vector3 liftFrom; float liftTime, liftDuration; // liftFrom is in world space, fixed at the grab
+        // The held stone's lag behind the hand (a damped spring pushed by the hand's acceleration).
+        Vector3 sway, swayVelocity, lastHand, lastHandVelocity; bool handTracked;
+        // How far the stone may be from the hand before the holder is held back.
+        const float HoldSlack = .4f;
         // Faster than any swing of the arm, slow enough that a stone never jumps through things.
         const float MaxHoldSpeed = 40;
         CharacterController controller;
@@ -54,6 +75,7 @@ namespace PhysicsReversi.Walk
             controller.Move(step);
             if (movement.sqrMagnitude > .001f)
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(movement), turnSpeed * Time.deltaTime);
+            if (HeldStone != null && carryPoint != null) Sway();
         }
         // Players stay on the table (decided 2026-11-25): a player who walked off the edge fell
         // forever and could not play again. The step is trimmed at the edge, so walking along it slides.
@@ -99,16 +121,31 @@ namespace PhysicsReversi.Walk
             bearing = bearing.sqrMagnitude > .01f ? bearing.normalized : front;
             float swing = turnSpeed * 2 * Time.fixedDeltaTime;
             bearing = Quaternion.AngleAxis(Mathf.Clamp(Vector3.SignedAngle(bearing, front, Vector3.up), -swing, swing), Vector3.up) * bearing;
-            Vector3 error = transform.position + bearing * reach + Vector3.up * height - body.position;
+            Vector3 hold = transform.position + bearing * reach + Vector3.up * height;
             Vector3 wanted;
             if (arriving)
             {
-                // Just picked up: the stone comes to the hand at its own pace.
-                wanted = Vector3.ClampMagnitude(error * carryFollowSpeed, maxCarrySpeed);
-                arriving = error.magnitude > ArriveDistance;
+                // Just picked up: lifted off and swung into the hand on a short arc, slow to
+                // start and fastest at the end, so it reads as something with weight hauled up
+                // and caught, not drawn in like a magnet. It aims at the hand as it is now, so
+                // it keeps up with a holder who turns meanwhile. It goes round the holder, not
+                // through: bearing and distance from the holder are blended, not positions.
+                liftTime += Time.fixedDeltaTime;
+                float t = Mathf.Clamp01(liftTime / liftDuration), u = t * t;
+                Vector3 from = liftFrom - transform.position;
+                float fromHeight = from.y; from.y = 0;
+                float fromReach = from.magnitude;
+                Vector3 fromBearing = fromReach > .01f ? from / fromReach : front;
+                Vector3 way = Quaternion.AngleAxis(Vector3.SignedAngle(fromBearing, front, Vector3.up) * u, Vector3.up) * fromBearing;
+                Vector3 target = transform.position + way * Mathf.Lerp(fromReach, reach, u)
+                    + Vector3.up * (Mathf.Lerp(fromHeight, height, u) + liftArc * Mathf.Sin(t * Mathf.PI));
+                wanted = Vector3.ClampMagnitude((target - body.position) / Time.fixedDeltaTime, MaxHoldSpeed);
+                if (t >= 1) { arriving = false; StoneCaught?.Invoke(this, HeldStone); }
             }
-            // In the hand it is held firmly: where the hand goes, the stone goes at once.
-            else wanted = Vector3.ClampMagnitude(error / Time.fixedDeltaTime, MaxHoldSpeed);
+            // In the hand it is held firmly: where the hand goes, the stone goes at once, give
+            // or take the sway.
+            else wanted = Vector3.ClampMagnitude((hold + sway + Vector3.up * (lowered ? 0 : HoldBob) - body.position) / Time.fixedDeltaTime, MaxHoldSpeed);
+            Vector3 error = hold - body.position;
             if (lowered)
             {
                 // Lowered, it is handled as a light thing drawn by a limited force. Being light it
@@ -119,14 +156,50 @@ namespace PhysicsReversi.Walk
                 body.linearVelocity += Vector3.ClampMagnitude(wanted - body.linearVelocity, push * Time.fixedDeltaTime);
             }
             else body.linearVelocity = wanted;
-            Quaternion turn = carryPoint.rotation * carryRotationOffset * Quaternion.Inverse(body.rotation);
+            // The lag tips the stone toward it, like a plate carried in both hands.
+            Vector3 lean = Vector3.Cross(Vector3.up, sway);
+            Quaternion tilt = lean.sqrMagnitude > 1e-6f ? Quaternion.AngleAxis(swayTilt * sway.magnitude, lean.normalized) : Quaternion.identity;
+            Quaternion turn = tilt * carryPoint.rotation * carryRotationOffset * Quaternion.Inverse(body.rotation);
             turn.ToAngleAxis(out float degrees, out Vector3 axis);
             if (degrees > 180) degrees -= 360;
             if (axis.sqrMagnitude > .001f && !float.IsNaN(axis.x)) body.angularVelocity = axis * Mathf.Clamp(degrees * Mathf.Deg2Rad * 5, -6, 6);
         }
+        // The stone lags the hand when the hand speeds up, slows down or turns, and springs
+        // back with a little overshoot. Settled out while lowered: there the stone is a tool for
+        // shoving, and it must go where it is aimed.
+        // Run per frame, where the holder moves: sampled in FixedUpdate the hand would move by
+        // uneven steps and its acceleration would be noise.
+        void Sway()
+        {
+            float dt = Time.deltaTime;
+            if (dt <= 0) return;
+            Vector3 hand = carryPoint.position;
+            bool lowered = IsReady && ReadySeconds >= readyDelay;
+            Vector3 velocity = handTracked ? (hand - lastHand) / dt : Vector3.zero;
+            Vector3 acceleration = handTracked ? (velocity - lastHandVelocity) / dt : Vector3.zero;
+            lastHand = hand; lastHandVelocity = velocity; handTracked = true;
+            acceleration.y = 0;
+            if (arriving || lowered) acceleration = Vector3.zero;
+            float k = swayStiffness * swayStiffness, c = 2 * swayDamping * swayStiffness;
+            swayVelocity += (-k * sway - c * swayVelocity - acceleration * swayAmount) * dt;
+            sway += swayVelocity * dt;
+            if (lowered) sway = Vector3.MoveTowards(sway, Vector3.zero, 4 * dt);
+            // At the limit only the outward motion stops, so it slides along the edge, not sticks.
+            float outward = sway.magnitude;
+            if (outward > swayLimit)
+            {
+                Vector3 dir = sway / outward;
+                sway = dir * swayLimit;
+                swayVelocity -= dir * Mathf.Max(0, Vector3.Dot(swayVelocity, dir));
+            }
+        }
         public void Attach(CarryStone stone, bool showOwnColor = false)
         {
             HeldStone = stone; readySince = -1; arriving = true;
+            liftFrom = stone.Body.position; liftTime = 0;
+            float distance = Vector3.ProjectOnPlane(liftFrom - carryPoint.position, Vector3.up).magnitude;
+            liftDuration = Mathf.Lerp(liftSeconds.x, liftSeconds.y, Mathf.InverseLerp(0, 6, distance));
+            sway = swayVelocity = Vector3.zero; handTracked = false;
             // Carried level with the holder's own color up, or just as it was picked up.
             Quaternion carried = showOwnColor
                 ? Quaternion.FromToRotation(stone.transform.up, Vector3.up * StoneFaces.UpSign(playerId)) * stone.Body.rotation

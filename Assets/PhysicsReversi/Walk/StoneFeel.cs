@@ -16,7 +16,10 @@ namespace PhysicsReversi.Walk
         public float particleScale = 2.2f;
 
         [Header("Grab")]
-        public Vector3 grabPop = new Vector3(1.08f, 1.5f, 1.08f);
+        [Tooltip("A slight stretch as the stone leaves the table. Kept small: a big stretch made it look light.")]
+        public Vector3 grabPop = new Vector3(1.04f, 1.2f, 1.04f);
+        [Tooltip("The squash as it lands in the hand: the weight arriving.")]
+        public Vector3 catchPop = new Vector3(1.12f, .7f, 1.12f);
         [Header("Landing and knocks")]
         [Tooltip("Impacts slower than this (relative speed) make no feedback.")]
         public float minImpactSpeed = 2.5f;
@@ -48,11 +51,13 @@ namespace PhysicsReversi.Walk
         {
             if (authority != null) { authority.StoneGrabbed += OnGrabbed; authority.StoneThrown += OnThrown; }
             CarryStone.Impacted += OnImpact; CarryStone.FlipStarted += OnFlip; CarryStone.FlipEnded += OnFlipEnded; CarryStone.BecameConfirmed += OnConfirmed;
+            WalkPlayer.StoneCaught += OnCaught;
         }
         void OnDisable()
         {
             if (authority != null) { authority.StoneGrabbed -= OnGrabbed; authority.StoneThrown -= OnThrown; }
             CarryStone.Impacted -= OnImpact; CarryStone.FlipStarted -= OnFlip; CarryStone.FlipEnded -= OnFlipEnded; CarryStone.BecameConfirmed -= OnConfirmed;
+            WalkPlayer.StoneCaught -= OnCaught;
         }
 
         void OnGrabbed(WalkPlayer player, CarryStone stone)
@@ -60,6 +65,8 @@ namespace PhysicsReversi.Walk
             var r = Renderer(stone); ToonFx.Pop(r, grabPop, .2f); ToonFx.Flash(r, new Color(1, 1, 1, .35f), .1f);
             Burst(stone.transform.position, 4, Palette.Player(player.playerId), 2.5f, .25f, .3f);
         }
+
+        void OnCaught(WalkPlayer player, CarryStone stone) => ToonFx.Pop(Renderer(stone), catchPop, .16f);
 
         void OnThrown(WalkPlayer player, CarryStone stone, float speed)
         {
