@@ -16,9 +16,11 @@ namespace PhysicsReversi.Walk
         public LocalWalkInput input;
         [Min(1)] public float matchSeconds = 180;
         [Min(0)] public float countdownSeconds = 3;
-        [Tooltip("After time is up, the count waits until no stone is flipping, for at least this long.")]
+        [Tooltip("After time is up, the count waits until no stone on the board moves, for at least this long.")]
         [Min(0)] public float settleSeconds = 1.5f;
-        [Tooltip("The count is taken after this long even if a stone is still flipping.")]
+        [Tooltip("A stone on the board slower than this (units per second) counts as settled.")]
+        [Min(0)] public float settledSpeed = .05f;
+        [Tooltip("The count is taken after this long even if a stone is still moving.")]
         [Min(0)] public float maxSettleSeconds = 4;
         [Tooltip("The result stays this long before a button can start the next match.")]
         [Min(0)] public float restartLockSeconds = 1;
@@ -51,7 +53,7 @@ namespace PhysicsReversi.Walk
                     if (phaseTime >= matchSeconds) Enter(Phase.Settling);
                     break;
                 case Phase.Settling:
-                    if ((phaseTime >= settleSeconds && !AnyFlipping()) || phaseTime >= maxSettleSeconds) Enter(Phase.Finished);
+                    if ((phaseTime >= settleSeconds && !AnyMoving()) || phaseTime >= maxSettleSeconds) Enter(Phase.Finished);
                     break;
                 case Phase.Finished:
                     if (phaseTime >= restartLockSeconds)
@@ -59,7 +61,7 @@ namespace PhysicsReversi.Walk
                         SetText(hintText, restartHint);
                         // Reloading rebuilds the board, the reserves and both players as authored.
                         // The scene must be in the build list (the setup menu adds it).
-                        if (RestartPressed()) SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+                        if (RestartPressed()) Restart();
                     }
                     break;
             }
@@ -90,11 +92,33 @@ namespace PhysicsReversi.Walk
             SetText(timerText, (seconds / 60) + ":" + (seconds % 60).ToString("00"));
         }
 
-        bool AnyFlipping()
+        // A stone still sliding may yet stop in a line and capture, so the count waits for it.
+        bool AnyMoving()
         {
             if (recognition == null || recognition.stones == null) return false;
-            foreach (var stone in recognition.stones) if (stone != null && stone.IsFlipping) return true;
+            float limit = settledSpeed * settledSpeed;
+            foreach (var stone in recognition.stones)
+            {
+                if (stone == null) continue;
+                if (stone.IsFlipping) return true;
+                var body = stone.Body;
+                if (stone.status != StoneStatus.OnBoard || body == null || body.isKinematic || body.IsSleeping()) continue;
+                if (body.linearVelocity.sqrMagnitude > limit || body.angularVelocity.sqrMagnitude > limit) return true;
+            }
             return false;
+        }
+
+        void Restart()
+        {
+            int index = SceneManager.GetActiveScene().buildIndex;
+            if (index < 0) { Debug.LogError("Add this scene to the build list (Physics Reversi/Walk/Add Match Flow (Flat)) to restart."); return; }
+            SceneManager.LoadScene(index);
+        }
+
+        // If the match is switched off mid-round, players get their controls back.
+        void OnDisable()
+        {
+            if (input != null) input.enabled = true;
         }
 
         static bool RestartPressed()

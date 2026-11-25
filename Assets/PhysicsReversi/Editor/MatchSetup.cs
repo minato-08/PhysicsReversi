@@ -11,24 +11,22 @@ namespace PhysicsReversi.Editor
     // flat scene first in the build list so a build opens it and a restart can reload it.
     public static class MatchSetup
     {
-        const string ScenePath = "Assets/Scenes/PhysicsReversiWalkFlat.unity";
-
         [MenuItem("Physics Reversi/Walk/Add Match Flow (Flat)")]
         public static void Add()
         {
             if (EditorApplication.isPlaying) { Debug.LogWarning("Stop Play first."); return; }
             var scene = EditorSceneManager.GetActiveScene();
             if (scene.name != "PhysicsReversiWalkFlat") { Debug.LogWarning("Open PhysicsReversiWalkFlat first."); return; }
-            PutSceneFirstInBuild();
             WalkBoardRecognition recognition = null; LocalWalkInput input = null;
             foreach (var root in scene.GetRootGameObjects())
             {
                 var existing = root.GetComponentInChildren<WalkMatch>(true);
-                if (existing != null) { Selection.activeGameObject = existing.gameObject; Debug.Log("Match flow already exists; its layout is preserved."); return; }
+                if (existing != null) { PutSceneFirstInBuild(scene.path); Selection.activeGameObject = existing.gameObject; Debug.Log("Match flow already exists; its layout is preserved."); return; }
                 if (recognition == null) recognition = root.GetComponentInChildren<WalkBoardRecognition>(true);
                 if (input == null) input = root.GetComponentInChildren<LocalWalkInput>(true);
             }
             if (recognition == null || input == null) { Debug.LogError("Board recognition or local input is missing from the scene."); return; }
+            PutSceneFirstInBuild(scene.path);
 
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             var canvasObject = new GameObject("Match HUD", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(WalkMatch));
@@ -47,10 +45,10 @@ namespace PhysicsReversi.Editor
             Debug.Log("Match flow saved. Match length and texts are on Match HUD / Walk Match.");
         }
 
-        static void PutSceneFirstInBuild()
+        static void PutSceneFirstInBuild(string scenePath)
         {
-            var scenes = EditorBuildSettings.scenes.Where(s => s.path != ScenePath).ToList();
-            scenes.Insert(0, new EditorBuildSettingsScene(ScenePath, true));
+            var scenes = EditorBuildSettings.scenes.Where(s => s.path != scenePath).ToList();
+            scenes.Insert(0, new EditorBuildSettingsScene(scenePath, true));
             EditorBuildSettings.scenes = scenes.ToArray();
         }
 
