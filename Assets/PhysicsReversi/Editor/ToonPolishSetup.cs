@@ -16,7 +16,8 @@ namespace PhysicsReversi.Editor
         const string Folder = "Assets/PhysicsReversi/WalkAssets/Toon";
         const string FrameName = "Board Frame";
         const string DustName = "Sunlit Dust";
-        const string ShadowsName = "Stone Shadows";
+        const string ShadowsName = "Contact Shadows";
+        const string OldShadowsName = "Stone Shadows"; // the group's name before figures had shadows
 
         // World units. Must stay below half the stone's thickness (0.18).
         const float StoneBevel = .13f;
@@ -41,6 +42,7 @@ namespace PhysicsReversi.Editor
             BuildFrame(scene, root, shader);
             BuildDust(scene);
             BuildShadows(scene);
+            GroundFigures(scene);
 
             EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
             Debug.Log("Toon polish applied: " + stones + " stones use the rounder mesh, board frame and dust rebuilt.");
@@ -64,7 +66,7 @@ namespace PhysicsReversi.Editor
                 var renderer = stone.GetComponent<MeshRenderer>();
                 Undo.RecordObject(filter, "Round toon stones"); Undo.RecordObject(renderer, "Round toon stones");
                 filter.sharedMesh = mesh; count++;
-                // Too thin for the shadow map; StoneShadows draws their shadow instead.
+                // Too thin for the shadow map; ContactShadows draws their shadow instead.
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 if (PrefabUtility.IsPartOfPrefabInstance(filter))
                 {
@@ -125,6 +127,27 @@ namespace PhysicsReversi.Editor
             renderer.sharedMaterial = material; renderer.shadowCastingMode = ShadowCastingMode.On;
         }
 
+        // The figures stand on the table: the visual drops by the controller's skin width (the
+        // controller hovers that much above the ground), and only ContactShadows shades under
+        // them. Their real shadow fell away from the feet and made them look afloat (2026-11-25).
+        static void GroundFigures(UnityEngine.SceneManagement.Scene scene)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+                foreach (var player in root.GetComponentsInChildren<WalkPlayer>(true))
+                {
+                    var figure = player.transform.Find("Figure");
+                    var controller = player.GetComponent<CharacterController>();
+                    if (figure == null || controller == null) continue;
+                    Undo.RecordObject(figure, "Ground figures");
+                    figure.localPosition = new Vector3(0, -controller.skinWidth, 0);
+                    foreach (var renderer in figure.GetComponentsInChildren<Renderer>(true))
+                    {
+                        Undo.RecordObject(renderer, "Ground figures");
+                        renderer.shadowCastingMode = ShadowCastingMode.Off;
+                    }
+                }
+        }
+
         static void BuildShadows(UnityEngine.SceneManagement.Scene scene)
         {
             var shader = Shader.Find("PhysicsReversi/GroundShadow");
@@ -135,10 +158,10 @@ namespace PhysicsReversi.Editor
             material.shader = shader; material.SetColor("_ShadowTint", Palette.Shadow);
             EditorUtility.SetDirty(material);
 
-            foreach (var obj in scene.GetRootGameObjects()) if (obj.name == ShadowsName) Undo.DestroyObjectImmediate(obj);
-            var group = new GameObject(ShadowsName, typeof(StoneShadows));
-            Undo.RegisterCreatedObjectUndo(group, "Build stone shadows");
-            var shadows = group.GetComponent<StoneShadows>();
+            foreach (var obj in scene.GetRootGameObjects()) if (obj.name == ShadowsName || obj.name == OldShadowsName) Undo.DestroyObjectImmediate(obj);
+            var group = new GameObject(ShadowsName, typeof(ContactShadows));
+            Undo.RegisterCreatedObjectUndo(group, "Build contact shadows");
+            var shadows = group.GetComponent<ContactShadows>();
             shadows.material = material;
             var top = GameObject.Find("Walkable surrounding floor");
             if (top != null)
@@ -146,6 +169,14 @@ namespace PhysicsReversi.Editor
                 var b = top.GetComponent<Renderer>().bounds;
                 shadows.groundHeight = b.max.y;
                 shadows.tableArea = new Rect(b.min.x, b.min.z, b.size.x, b.size.z);
+            }
+            // Players start standing on the frame; their shadow must lie on it, not under it.
+            var frame = GameObject.Find(FrameName);
+            if (frame != null)
+            {
+                var bars = frame.GetComponentsInChildren<Renderer>();
+                shadows.raised = new Bounds[bars.Length];
+                for (int i = 0; i < bars.Length; i++) shadows.raised[i] = bars[i].bounds;
             }
         }
 

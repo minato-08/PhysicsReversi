@@ -56,7 +56,7 @@ namespace PhysicsReversi.Editor
 
             // A warm sun from the far side of the board, so shadows fall toward the camera and
             // peek out from under the thin stones (ART.md "光"). The stones' shadow is drawn by
-            // StoneShadows, so the sun only has to suit the figures: at 32 degrees their shadows
+            // ContactShadows, and so are the figures' since they lost theirs; at 32 degrees their shadows
             // ran long and started away from the feet, so the figures looked afloat (2026-11-25).
             foreach (var light in Object.FindObjectsByType<Light>())
             {

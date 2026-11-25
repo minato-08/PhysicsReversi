@@ -2,13 +2,14 @@ using UnityEngine;
 
 namespace PhysicsReversi.Walk
 {
-    // Draws a flat shadow on the table under every stone (ART.md "接地影"). The stones are too
-    // thin for the real shadow map: at the sun's height their shadow reaches only ~0.6 past the
-    // edge and is lost to the shadow bias (measured in Play, 2026-11-25). The stones' own shadow
-    // casting is turned off in the toon scene, so this is their only shadow; it falls where the
-    // sun would put it, like the figures' real shadows. Looks only: it reads the stones'
-    // transforms and never touches their bodies or the rules.
-    public sealed class StoneShadows : MonoBehaviour
+    // Draws a flat shadow on the table under every stone and every player figure (ART.md "接地影").
+    // Both are too small near the table for the real shadow map: a stone's shadow reaches only
+    // ~0.6 past its edge and the figures' feet cast none at all, both lost to the shadow bias
+    // (measured in Play, 2026-11-25). Their own shadow casting is turned off in the toon scene,
+    // so this is their only shadow. A stone's falls along the sun, so a lifted stone's shadow
+    // slides away; a figure's sits right under its feet, to show it standing on the table.
+    // Looks only: it reads transforms and never touches bodies, controllers or the rules.
+    public sealed class ContactShadows : MonoBehaviour
     {
         public Material material;
         [Tooltip("Height of the table top the shadows lie on (world).")]
@@ -18,10 +19,20 @@ namespace PhysicsReversi.Walk
         [Tooltip("Above this height (world) a lifted stone's shadow has shrunk and faded fully.")]
         public float fadeHeight = 5f;
         [Range(0, 1)] public float amount = .7f;
+        [Tooltip("Decor standing up from the table (the board frame). A shadow over one lies on its top instead of under it.")]
+        public Bounds[] raised = new Bounds[0];
+        [Header("Player figures")]
+        [Tooltip("Half width and half depth of the shadow under a figure (world). Wider than the torso (0.68), or the body hides it from the camera.")]
+        public Vector2 figureSize = new Vector2(1.1f, .95f);
+        [Range(0, 1)] public float figureAmount = .9f;
 
-        const float Lift = .015f; // above the board cells, below the recognition marks
+        // Above the table top. At 0.015 the shadows vanished on the cream table (not on the board
+        // cells, 0.01 higher) and showed from 0.03; the table is truly at -0.5, so the cause is in
+        // the depth test and not yet found (2026-11-25). Shadows lie over the recognition marks.
+        const float Lift = .04f;
         CarryStone[] stones;
-        Transform[] shadows;
+        WalkPlayer[] figures;
+        Transform[] shadows;   // stones first, then figures
         Renderer[] renderers;
         MaterialPropertyBlock block;
         Light sun;
@@ -30,11 +41,14 @@ namespace PhysicsReversi.Walk
         void Start()
         {
             stones = FindObjectsByType<CarryStone>(FindObjectsInactive.Include);
-            shadows = new Transform[stones.Length]; renderers = new Renderer[stones.Length];
+            figures = FindObjectsByType<WalkPlayer>();
+            int count = stones.Length + figures.Length;
+            shadows = new Transform[count]; renderers = new Renderer[count];
             var mesh = Disc(32);
-            for (int i = 0; i < stones.Length; i++)
+            for (int i = 0; i < count; i++)
             {
-                var obj = new GameObject("Shadow " + stones[i].name, typeof(MeshFilter), typeof(MeshRenderer));
+                string owner = i < stones.Length ? stones[i].name : figures[i - stones.Length].name;
+                var obj = new GameObject("Shadow " + owner, typeof(MeshFilter), typeof(MeshRenderer));
                 obj.transform.SetParent(transform, false);
                 obj.GetComponent<MeshFilter>().sharedMesh = mesh;
                 var renderer = obj.GetComponent<MeshRenderer>();
@@ -61,7 +75,8 @@ namespace PhysicsReversi.Walk
                 // Height of the stone's lowest point above the table; a stone that left the table hides its shadow.
                 Vector3 up = t.up;
                 float lowest = p.y - Mathf.Abs(up.y) * halfThickness - Mathf.Sqrt(Mathf.Max(0, 1 - up.y * up.y)) * radius;
-                float height = lowest - groundHeight;
+                float ground = GroundAt(p);
+                float height = lowest - ground;
                 bool visible = stone.gameObject.activeInHierarchy && stone.status != StoneStatus.Removed
                     && height > -.3f && height < fadeHeight && tableArea.Contains(new Vector2(p.x, p.z));
                 if (renderers[i].enabled != visible) renderers[i].enabled = visible;
@@ -75,11 +90,34 @@ namespace PhysicsReversi.Walk
                 float along = Mathf.Max(across * Mathf.Abs(up.y), halfThickness * 1.6f);
                 // The middle of the stone's height decides where the middle of its shadow falls.
                 float middle = Mathf.Max(0, height) + halfThickness * Mathf.Abs(up.y);
-                shadows[i].SetPositionAndRotation(new Vector3(p.x, groundHeight + Lift, p.z) + slide * middle, turn);
+                Vector3 at = new Vector3(p.x, 0, p.z) + slide * middle; at.y = GroundAt(at) + Lift;
+                shadows[i].SetPositionAndRotation(at, turn);
                 shadows[i].localScale = new Vector3(across, 1, along);
                 block.SetFloat(AmountId, amount * (1 - lift));
                 renderers[i].SetPropertyBlock(block);
             }
+
+            for (int f = 0; f < figures.Length; f++)
+            {
+                int i = stones.Length + f;
+                var t = figures[f].transform; Vector3 p = t.position;
+                bool visible = figures[f].isActiveAndEnabled && tableArea.Contains(new Vector2(p.x, p.z));
+                if (renderers[i].enabled != visible) renderers[i].enabled = visible;
+                if (!visible) continue;
+                shadows[i].SetPositionAndRotation(new Vector3(p.x, GroundAt(p) + Lift, p.z), Quaternion.Euler(0, t.eulerAngles.y, 0));
+                shadows[i].localScale = new Vector3(figureSize.x, 1, figureSize.y);
+                block.SetFloat(AmountId, figureAmount);
+                renderers[i].SetPropertyBlock(block);
+            }
+        }
+
+        // The height a shadow at this spot lies on: the table, or the top of a raised piece of decor.
+        float GroundAt(Vector3 p)
+        {
+            float y = groundHeight;
+            foreach (var b in raised)
+                if (p.x >= b.min.x && p.x <= b.max.x && p.z >= b.min.z && p.z <= b.max.z) y = Mathf.Max(y, b.max.y);
+            return y;
         }
 
         // A unit disc (radius 1) in the XZ plane, facing up.
@@ -92,7 +130,7 @@ namespace PhysicsReversi.Walk
                 vertices[i + 1] = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
                 triangles[i * 3] = 0; triangles[i * 3 + 1] = (i + 1) % sides + 1; triangles[i * 3 + 2] = i + 1;
             }
-            var mesh = new Mesh { name = "Stone shadow disc", vertices = vertices, triangles = triangles };
+            var mesh = new Mesh { name = "Contact shadow disc", vertices = vertices, triangles = triangles };
             mesh.RecalculateBounds();
             return mesh;
         }
