@@ -36,10 +36,12 @@ CLIビルドスクリプトやUnity Test Frameworkのテストはない。検証
 - **ルールテスト**は、メニュー`Physics Reversi → Run Rule Checks`で実行する。メニューの実装は`Assets/PhysicsReversi/Editor/PrototypeSetup.cs`にある。`RulesChecks.Run()`が純粋ロジックを検査し、失敗時は`"FAILED: <名前>"`の例外を投げる。成功時は通過件数をログに出力する。
   - バッチ実行するコマンドは`Unity.exe -batchmode -projectPath . -executeMethod PhysicsReversi.Editor.PrototypeSetup.RunRuleChecks -quit -logFile -`。`Unity.exe`はWindowsの例で、macOSでは`/Applications/Unity/Hub/Editor/<版>/Unity.app/Contents/MacOS/Unity`を使う。
   - 個別のテストを実行する仕組みはない。`RulesChecks.cs`は、1本のメソッドに`Check(...); checks++;`を並べた形式なので、テストを追加するときもこの形式に合わせる。このファイルはEditorフォルダにあるが、namespaceは`PhysicsReversi`。
-- コンパイルエラーの確認、Play、シーン操作は、Unity CLI（`unity`コマンド、Unityプラグインの`unity:unity-cli`スキル）で、開いているエディタを操作して行う。接続は`unity status`で確認する。プロジェクト側に`com.unity.pipeline`パッケージが必要。Coplay MCPは使わない。
-  - PlayをCLIから検証するとき、エディタが最前面にないとゲームが進まない。Play開始後に`unity command eval 'UnityEngine.Application.runInBackground = true; return 1;'`を実行する。この値はプロジェクト設定（`ProjectSettings.asset`の`runInBackground`）に残る。検証が終わったら、編集モードで`UnityEditor.PlayerSettings.runInBackground = false; UnityEditor.AssetDatabase.SaveAssets();`を実行して戻す。画面撮影には`capture_game_view --source screen`を使う。保存先は`Assets/`配下に限られるので、撮影後に画像を`.meta`ごと削除する。
-  - `eval`から呼べるのは`public`なメンバーだけ。`internal`は別アセンブリ扱いで見えない。キーやゲームパッドの入力はCLIから送れないので、入力そのものは手で確認する。
-  - Play中でないときに`eval`でシーン上のオブジェクトの値を書き換えると、編集中のシーンが変わってしまう。検証用の`eval`は、先頭で`EditorApplication.isPlaying`を確認する。
+- コンパイルエラーの確認、Play、シーン操作は、Unity CLI（`unity`コマンド、Unityプラグインの`unity:unity-cli`スキル）で、開いているエディタを操作して行う。接続は`unity status`で確認する。プロジェクト側に`com.unity.pipeline`パッケージ（1.0.1）が必要。Coplay MCPは使わない。
+  - エディタはUnity Hubから開く。CLIの`unity open`で開くと、エディタがUnityアカウントにサインインしていない状態で起動し、パッケージのダウンロードが失敗する（2026-11-25に、Pipelineパッケージの更新が入らず接続が切れた）。Claude Codeのシェルからは、キーチェーンにあるCLIのサインイン情報を読めない。
+  - 命令の名前は`unity command --query <語>`で調べる。Pipeline 1.0で名前と引数が変わった（引数はkebab-case）。
+  - Playは`unity command editor.playmode start`で始め、`editor.playmode stop`で止める。startは、Play中だけRun In Backgroundをオンにするので、エディタが背面にあってもゲームが進む。プロジェクト設定は書き換わらない。C#の実行は`unity command script eval --code '<式>'`で、値をそのまま返し、失敗すると終了コード6になる。画面撮影には`capture game_view --source screen`を使う。保存先が`Assets/`配下になったときは、撮影後に画像を`.meta`ごと削除する。
+  - `script eval`から呼べるのは`public`なメンバーだけ。`internal`は別アセンブリ扱いで見えない（`--internals true`はUnity本体のinternalにしか効かない）。キーやゲームパッドの入力はCLIから送れないので、入力そのものは手で確認する。
+  - Play中でないときに`script eval`でシーン上のオブジェクトの値を書き換えると、編集中のシーンが変わってしまう。検証用の`script eval`は、先頭で`EditorApplication.isPlaying`を確認する。
   - エディタが背面にあると、Playは毎秒約10フレームになる。`WalkPlayer`は`Update`で動くので、歩く、押す、持って回る、が絡む測定は、Play開始後に`UnityEngine.Time.captureFramerate = 60`を設定して行う。設定すると毎秒60フレーム相当で進み、実時間では遅くなる。Playを止めると元に戻る。設定せずに測った「体で押す強さ70」は、実際には何も押せない値だった。
   - スクリプトの初期値を変えても、開いたままのシーンのオブジェクトは、追加された時点の値を持ち続ける。初期値を変えたら、シーンを開き直すか、平面版を作り直してから測る。
 - 見た目、反転の動き、衝突結果は、Playでの手動確認が必要。
