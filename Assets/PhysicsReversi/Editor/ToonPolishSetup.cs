@@ -44,9 +44,62 @@ namespace PhysicsReversi.Editor
             BuildDust(scene);
             BuildShadows(scene);
             GroundFigures(scene);
+            int smoothed = SmoothOutlines(scene);
 
             EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
-            Debug.Log("Toon polish applied: " + stones + " stones use the rounder mesh, board frame and dust rebuilt.");
+            Debug.Log("Toon polish applied: " + stones + " stones use the rounder mesh, board frame and dust rebuilt, " + smoothed + " boxes and cylinders get smooth outlines.");
+        }
+
+        // Unity's built-in cube and cylinder keep separate vertices per face at hard edges, each
+        // with its face's normal, so the outline hull (pushed out along the normals) split open at
+        // every edge: the line floated off the edge with table showing between, dashed where it
+        // fought the table for depth (2026-11-25). Each gets a copy carrying, in UV3, the normal
+        // averaged over all vertices at the same spot; only the outline pass reads it, so the
+        // faces still shade flat. Only the look changes: colliders keep their own meshes.
+        static int SmoothOutlines(UnityEngine.SceneManagement.Scene scene)
+        {
+            var copies = new System.Collections.Generic.Dictionary<Mesh, Mesh>();
+            int count = 0;
+            foreach (var root in scene.GetRootGameObjects())
+            foreach (var filter in root.GetComponentsInChildren<MeshFilter>(true))
+            {
+                var mesh = filter.sharedMesh;
+                var renderer = filter.GetComponent<MeshRenderer>();
+                if (mesh == null || renderer == null || renderer.sharedMaterial == null || renderer.sharedMaterial.shader.name != ToonLookSetup.ShaderName) continue;
+                if (AssetDatabase.GetAssetPath(mesh) != "Library/unity default resources" || (mesh.name != "Cube" && mesh.name != "Cylinder")) continue;
+                if (!copies.TryGetValue(mesh, out var copy)) copies[mesh] = copy = SmoothCopy(mesh);
+                Undo.RecordObject(filter, "Smooth outlines");
+                filter.sharedMesh = copy; count++;
+                if (PrefabUtility.IsPartOfPrefabInstance(filter)) PrefabUtility.RecordPrefabInstancePropertyModifications(filter);
+            }
+            return count;
+        }
+
+        static Mesh SmoothCopy(Mesh source)
+        {
+            string path = Folder + "/Outline" + source.name + ".asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null) { mesh = new Mesh(); AssetDatabase.CreateAsset(mesh, path); }
+            mesh.Clear();
+            mesh.name = source.name + " (smooth outline)";
+            mesh.vertices = source.vertices; mesh.normals = source.normals; mesh.uv = source.uv; mesh.tangents = source.tangents;
+            mesh.subMeshCount = source.subMeshCount;
+            for (int i = 0; i < source.subMeshCount; i++) mesh.SetTriangles(source.GetTriangles(i), i);
+
+            var vertices = source.vertices; var normals = source.normals;
+            var sums = new System.Collections.Generic.Dictionary<Vector3Int, Vector3>();
+            System.Func<Vector3, Vector3Int> key = v => Vector3Int.RoundToInt(v * 10000);
+            for (int i = 0; i < vertices.Length; i++)
+            {
+                sums.TryGetValue(key(vertices[i]), out var sum);
+                sums[key(vertices[i])] = sum + normals[i];
+            }
+            var smooth = new Vector3[vertices.Length];
+            for (int i = 0; i < vertices.Length; i++) smooth[i] = sums[key(vertices[i])].normalized;
+            mesh.SetUVs(3, smooth);
+            mesh.RecalculateBounds();
+            EditorUtility.SetDirty(mesh);
+            return mesh;
         }
 
         // The toon scene gets its own copy of the two-sided mesh with a fat rounded edge, so the

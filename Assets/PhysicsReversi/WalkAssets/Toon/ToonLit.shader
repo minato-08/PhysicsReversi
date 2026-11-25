@@ -206,6 +206,11 @@ Shader "PhysicsReversi/ToonLit"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS   : NORMAL;
+                // Smoothed normal for the hull (ToonPolishSetup.SmoothOutlines). Boxes and
+                // cylinders split their normals at hard edges, so pushing each face along its own
+                // normal tore the hull apart and the line floated off the edge. Zero on meshes
+                // without it (stones, spheres), which use their own normal.
+                float3 outlineOS  : TEXCOORD3;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -225,7 +230,8 @@ Shader "PhysicsReversi/ToonLit"
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
                 float4 positionCS = TransformObjectToHClip(PopOS(input.positionOS.xyz));
-                float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
+                float3 normalOS = dot(input.outlineOS, input.outlineOS) > .25 ? input.outlineOS : input.normalOS;
+                float3 normalWS = TransformObjectToWorldNormal(normalOS);
                 float2 normalCS = mul((float3x3)GetWorldToHClipMatrix(), normalWS).xy;
                 float len = length(normalCS);
                 float2 dir = len > 1e-5 ? normalCS / len : float2(0, 0);
