@@ -15450,6 +15450,7 @@ MonoBehaviour:
   pushStrength: 110
   carryFollowSpeed: 8
   maxCarrySpeed: 12
+  walkableArea: {fileID: 197944956}
 --- !u!143 &1380288140
 CharacterController:
   m_ObjectHideFlags: 0
@@ -18817,6 +18818,7 @@ MonoBehaviour:
   pushStrength: 110
   carryFollowSpeed: 8
   maxCarrySpeed: 12
+  walkableArea: {fileID: 197944956}
 --- !u!143 &1610185262
 CharacterController:
   m_ObjectHideFlags: 0

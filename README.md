@@ -121,6 +121,10 @@ Unity 6、URP、Input Systemを使っています。本筋のシーンは`Assets
 
 `Turn Held Stone To Holder Color`をオフにすると、石は掴んだときの向きを保ちます。これは以前の挙動です。
 
+### 床の端
+
+プレイヤーは床の外へ出られません。床の縁で止まり、縁に沿っては歩けます。範囲はWalk Playerの`Walkable Area`（床の当たり判定）で決まり、メニュー`Keep Players On Table`が設定します。石は床から落ちます（次の節）。
+
 ### 床から落ちた石
 
 床の外へ落ち、盤より`Fall Depth`以上低くなった石は、持ち主の予備置き場へ戻り、予備石に戻ります。持ち主は`Reserve Owner Id`で決まります。

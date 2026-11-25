@@ -12,6 +12,8 @@ namespace PhysicsReversi.Walk
         public float pushStrength = 35;
         public float carryFollowSpeed = 8;
         public float maxCarrySpeed = 12;
+        [Tooltip("The player cannot walk past the edges of this collider's bounds (the table top). Stones can still fall off. Empty: no limit.")]
+        public Collider walkableArea;
         public CarryStone HeldStone { get; private set; }
         public bool HasMovementInput => movement.sqrMagnitude > .001f;
         public bool HasManipulationInput => HasMovementInput;
@@ -48,9 +50,21 @@ namespace PhysicsReversi.Walk
             verticalSpeed += Physics.gravity.y * Time.deltaTime;
             Vector3 step = (movement * moveSpeed + Vector3.up * verticalSpeed) * Time.deltaTime;
             if (HeldStone != null && carryPoint != null && !arriving) step = StayWithStone(step);
+            if (walkableArea != null) step = KeepOnArea(step);
             controller.Move(step);
             if (movement.sqrMagnitude > .001f)
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(movement), turnSpeed * Time.deltaTime);
+        }
+        // Players stay on the table (decided 2026-11-25): a player who walked off the edge fell
+        // forever and could not play again. The step is trimmed at the edge, so walking along it slides.
+        Vector3 KeepOnArea(Vector3 step)
+        {
+            Bounds area = walkableArea.bounds; float margin = controller.radius;
+            Vector3 here = transform.position, next = here + step;
+            next.x = Mathf.Clamp(next.x, area.min.x + margin, area.max.x - margin);
+            next.z = Mathf.Clamp(next.z, area.min.z + margin, area.max.z - margin);
+            step.x = next.x - here.x; step.z = next.z - here.z;
+            return step;
         }
         // The hold is rigid both ways: the holder cannot walk into a stone that will not give
         // way, nor away from one that cannot follow.
