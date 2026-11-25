@@ -73,7 +73,7 @@ namespace PhysicsReversi.Walk
             Current = next; phaseTime = 0;
             if (input != null) input.enabled = next == Phase.Playing;
             SetText(hintText, "");
-            if (next == Phase.Settling) SetText(bannerText, "TIME UP");
+            if (next == Phase.Settling) { SetText(bannerText, "TIME UP"); DropHeldStones(); }
             if (next == Phase.Finished) ShowResult();
         }
 
@@ -106,6 +106,14 @@ namespace PhysicsReversi.Walk
                 if (body.linearVelocity.sqrMagnitude > limit || body.angularVelocity.sqrMagnitude > limit) return true;
             }
             return false;
+        }
+
+        // Stones in hand at time-up are put down in front of their holders (decided 2026-11-25),
+        // then counted with the rest once the board settles. Input is already off, so they fall straight.
+        void DropHeldStones()
+        {
+            if (input == null || input.authority == null || input.players == null) return;
+            foreach (var player in input.players) input.authority.ForceDrop(player);
         }
 
         void Restart()

@@ -118,5 +118,15 @@ namespace PhysicsReversi.Walk
             StonePlaced?.Invoke(stone, owner);
             return true;
         }
+        // Puts the held stone down in front of the actor, never as a throw, whatever the button
+        // is doing. The match calls it when time is up, so every stone lands and can be counted.
+        public bool ForceDrop(WalkPlayer actor)
+        {
+            if (actor == null || actor.HeldStone == null || actor.HeldStone.Holder != actor) return false;
+            var stone = actor.HeldStone;
+            actor.Detach();
+            StonePlaced?.Invoke(stone, actor.playerId);
+            return true;
+        }
     }
 }
