@@ -82,7 +82,10 @@ namespace PhysicsReversi.Editor
         }
         // The mesh stays inside the unit cylinder (radius .5, faces at local y = +1 and -1) and
         // still reaches its full radius on the side, so the outline seen from above is the same.
-        static void Fill(Mesh mesh)
+        static void Fill(Mesh mesh) => Fill(mesh, BevelRadius, BevelSteps);
+
+        // Also used by the toon trial, which wants a rounder edge on its own copy of the mesh.
+        public static void Fill(Mesh mesh, float bevelRadius, int bevelSteps)
         {
             // Stones are scaled unevenly (wide and thin), so the bevel is sized in world units
             // and converted to local ones here. Scene stones take their scale from this prefab.
@@ -90,24 +93,24 @@ namespace PhysicsReversi.Editor
             Vector3 scale = prefab != null ? prefab.transform.localScale : new Vector3(2.6f, .18f, 2.6f);
             var vertices = new List<Vector3>(); var normals = new List<Vector3>();
             var black = new List<int>(); var white = new List<int>();
-            Half(vertices, normals, black, 1, scale);
-            Half(vertices, normals, white, -1, scale);
+            Half(vertices, normals, black, 1, scale, bevelRadius, bevelSteps);
+            Half(vertices, normals, white, -1, scale, bevelRadius, bevelSteps);
             mesh.Clear(); mesh.subMeshCount = 2;
             mesh.SetVertices(vertices); mesh.SetNormals(normals);
             mesh.SetTriangles(black, 0); mesh.SetTriangles(white, 1);
             mesh.RecalculateBounds();
         }
         // One face of the stone: flat cap, rounded edge, then the side down to the middle seam.
-        static void Half(List<Vector3> vertices, List<Vector3> normals, List<int> indices, int sign, Vector3 scale)
+        static void Half(List<Vector3> vertices, List<Vector3> normals, List<int> indices, int sign, Vector3 scale, float bevelRadius, int bevelSteps)
         {
-            float radial = BevelRadius / scale.x, axial = BevelRadius / scale.y;
-            int center = vertices.Count, rings = BevelSteps + 2;
+            float radial = bevelRadius / scale.x, axial = bevelRadius / scale.y;
+            int center = vertices.Count, rings = bevelSteps + 2;
             vertices.Add(new Vector3(0, sign, 0)); normals.Add(new Vector3(0, sign, 0));
             for (int ring = 0; ring < rings; ring++)
             {
                 // Rings 0..BevelSteps sweep the quarter circle of the bevel; the last one is the seam.
                 bool seam = ring == rings - 1;
-                float t = seam ? Mathf.PI / 2 : ring * Mathf.PI / 2 / BevelSteps;
+                float t = seam ? Mathf.PI / 2 : ring * Mathf.PI / 2 / bevelSteps;
                 float r = .5f - radial + radial * Mathf.Sin(t), y = seam ? 0 : 1 - axial + axial * Mathf.Cos(t);
                 for (int i = 0; i < Sides; i++)
                 {

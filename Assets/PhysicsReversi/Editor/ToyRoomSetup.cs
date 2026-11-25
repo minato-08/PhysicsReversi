@@ -37,7 +37,7 @@ namespace PhysicsReversi.Editor
             var sky = ToonLookSetup.Toon(shader, "ToonPlayerWhite", Palette.PlayerWhite, 2.5f);
             var accent = ToonLookSetup.Toon(shader, "ToonAccent", Palette.Accent, 2f);
             var mint = ToonLookSetup.Toon(shader, "ToonBlockMint", Palette.BoardDark, 2f);
-            var milk = ToonLookSetup.Toon(shader, "ToonStoneWhite", Palette.StoneWhite, 2f);
+            var milk = ToonLookSetup.Toon(shader, "ToonStoneWhite", Palette.StoneWhite, ToonLookSetup.StoneOutline); // shared with the white stones
             var ink = ToonLookSetup.Toon(shader, "ToonInk", Palette.Outline, 0f);
 
             // Everything is placed against the table top's own bounds (44 x 56 when written).

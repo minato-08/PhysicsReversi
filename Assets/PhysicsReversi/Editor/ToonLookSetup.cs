@@ -16,6 +16,8 @@ namespace PhysicsReversi.Editor
         const string SceneName = "PhysicsReversiToon";
         const string Folder = "Assets/PhysicsReversi/WalkAssets/Toon";
         public const string ShaderName = "PhysicsReversi/ToonLit";
+        // Screen pixels. Thick enough that a stone reads as an object at the game camera's distance.
+        public const float StoneOutline = 3f;
 
         [MenuItem("Physics Reversi/Walk/Apply Toon Look (Trial)")]
         public static void Apply()
@@ -30,8 +32,8 @@ namespace PhysicsReversi.Editor
             // surfaces get none, because a hull outline on a plane only draws its rim.
             var swap = new Dictionary<string, Material>
             {
-                { "BlackStone", Toon(shader, "ToonStoneBlack", Palette.StoneBlack, 2f) },
-                { "WhiteStone", Toon(shader, "ToonStoneWhite", Palette.StoneWhite, 2f) },
+                { "BlackStone", Toon(shader, "ToonStoneBlack", Palette.StoneBlack, StoneOutline) },
+                { "WhiteStone", Toon(shader, "ToonStoneWhite", Palette.StoneWhite, StoneOutline) },
                 { "BoardLight", Toon(shader, "ToonBoardLight", Palette.BoardLight, 0f) },
                 { "BoardTeal", Toon(shader, "ToonBoardDark", Palette.BoardDark, 0f) },
                 { "Ground", Toon(shader, "ToonTable", Palette.Table, 0f) },
@@ -53,13 +55,14 @@ namespace PhysicsReversi.Editor
                 }
 
             // A warm sun from the far side of the board, so shadows fall toward the camera and
-            // peek out from under the thin stones (ART.md "光").
+            // peek out from under the thin stones (ART.md "光"). Low enough for the shadows to show
+            // past the stones' rounded edges.
             foreach (var light in Object.FindObjectsByType<Light>())
             {
                 if (light.type != LightType.Directional) continue;
                 Undo.RecordObject(light, "Apply toon look"); Undo.RecordObject(light.transform, "Apply toon look");
                 light.color = Palette.Sun; light.intensity = 1.2f; light.shadows = LightShadows.Soft;
-                light.transform.rotation = Quaternion.Euler(40, 60, 0);
+                light.transform.rotation = Quaternion.Euler(32, 60, 0);
             }
             // Shadow sides take a cool sky above and a warm floor below instead of flat grey.
             RenderSettings.ambientMode = AmbientMode.Trilight;
@@ -67,12 +70,17 @@ namespace PhysicsReversi.Editor
             RenderSettings.ambientEquatorColor = Palette.SkyHorizon;
             RenderSettings.ambientGroundColor = Palette.GroundAmbient;
             RenderSettings.skybox = null;
-            RenderSettings.fog = false;
+            // A warm haze that only reaches the room below and behind the table, pushing it back
+            // so the table reads as the near, sharp layer. The camera is about 60 from the board
+            // and 76 from the far corner of the table; nearer fog washed the board out (2026-11-25).
+            RenderSettings.fog = true; RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogColor = Palette.Haze;
+            RenderSettings.fogStartDistance = 80; RenderSettings.fogEndDistance = 230;
 
             foreach (var camera in Object.FindObjectsByType<Camera>())
             {
                 Undo.RecordObject(camera, "Apply toon look");
-                camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = Palette.SkyHorizon;
+                camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = Palette.Haze;
                 var data = camera.GetUniversalAdditionalCameraData();
                 Undo.RecordObject(data, "Apply toon look"); data.renderPostProcessing = true;
             }
@@ -110,17 +118,27 @@ namespace PhysicsReversi.Editor
             return material;
         }
 
-        // Starting values from the craft floor's bright-toy row: neutral tonemapping keeps the flat
-        // palette colours true, a little bloom for the accent, a light vignette to frame the board.
+        // Neutral tonemapping keeps the flat palette colours true. On top: bloom only for what
+        // goes past white (the flashes), a plum vignette to frame the board, and a far-only blur
+        // so the room sits behind the table like a photo of a toy (the table itself stays sharp).
+        // A lower bloom threshold and split toning were tried on 2026-11-25: the cream table
+        // glowed and the black stones turned purple, so both were dropped.
         static void AddVolume(UnityEngine.SceneManagement.Scene scene)
         {
             string path = Folder + "/ToonVolume.asset";
             var profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(path);
             if (profile == null) { profile = ScriptableObject.CreateInstance<VolumeProfile>(); AssetDatabase.CreateAsset(profile, path); }
             var tone = Get<Tonemapping>(profile); tone.mode.Override(TonemappingMode.Neutral);
-            var bloom = Get<Bloom>(profile); bloom.intensity.Override(.3f); bloom.threshold.Override(1.1f);
-            var vignette = Get<Vignette>(profile); vignette.intensity.Override(.2f);
-            var adjust = Get<ColorAdjustments>(profile); adjust.saturation.Override(10f); adjust.contrast.Override(5f);
+            var bloom = Get<Bloom>(profile); bloom.intensity.Override(.35f); bloom.threshold.Override(1.1f); bloom.scatter.Override(.6f);
+            bloom.tint.Override(Palette.Sun);
+            var vignette = Get<Vignette>(profile); vignette.intensity.Override(.3f); vignette.smoothness.Override(.45f);
+            vignette.color.Override(Palette.Outline);
+            var adjust = Get<ColorAdjustments>(profile); adjust.saturation.Override(14f); adjust.contrast.Override(12f);
+            if (profile.TryGet(out SplitToning split)) { profile.Remove<SplitToning>(); Object.DestroyImmediate(split, true); }
+            var focus = Get<DepthOfField>(profile);
+            focus.mode.Override(DepthOfFieldMode.Gaussian);
+            focus.gaussianStart.Override(84f); focus.gaussianEnd.Override(135f); focus.gaussianMaxRadius.Override(1.2f);
+            focus.highQualitySampling.Override(true);
             EditorUtility.SetDirty(profile);
 
             Volume volume = null;

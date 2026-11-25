@@ -24,6 +24,8 @@ namespace PhysicsReversi.Walk
         public static readonly Color SkyTop = Hex(0xBFE3F5);
         public static readonly Color SkyHorizon = Hex(0xFDF1DC);
         public static readonly Color GroundAmbient = Hex(0xE8C9A0);
+        public static readonly Color BoardFrame = Hex(0x4E9E8B);
+        public static readonly Color Haze = Hex(0xF4E2D0);
 
         // The colour each player's character and UI wear: 1 is black, 2 is white.
         public static Color Player(int playerId) => playerId == 2 ? PlayerWhite : PlayerBlack;

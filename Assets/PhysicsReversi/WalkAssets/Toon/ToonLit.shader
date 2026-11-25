@@ -10,6 +10,8 @@ Shader "PhysicsReversi/ToonLit"
         _BandSoftness ("Band Softness", Range(0.001, 0.2)) = 0.03
         _RimColor ("Rim Color (A = strength)", Color) = (1, 1, 1, 0.25)
         _RimPower ("Rim Power", Range(1, 8)) = 3
+        _HighlightColor ("Highlight Color (A = strength)", Color) = (1, 1, 1, 0)
+        _HighlightSize ("Highlight Size", Range(0.001, 0.5)) = 0.06
         _OutlineColor ("Outline Color", Color) = (0.2, 0.157, 0.29, 1)
         _OutlineWidth ("Outline Width (px)", Range(0, 10)) = 2
         _ReceiveAmbient ("Receive Ambient", Range(0, 1)) = 0.6
@@ -39,6 +41,8 @@ Shader "PhysicsReversi/ToonLit"
             half _BandSoftness;
             half4 _RimColor;
             half _RimPower;
+            half4 _HighlightColor;
+            half _HighlightSize;
             half4 _OutlineColor;
             float _OutlineWidth;
             half _ReceiveAmbient;
@@ -159,6 +163,15 @@ Shader "PhysicsReversi/ToonLit"
                 // Subtle rim, lit side only.
                 half rim = pow(1.0h - saturate(dot(n, v)), _RimPower) * _RimColor.a * q;
                 color += _RimColor.rgb * rim;
+
+                // A hard-edged glint where the surface mirrors the sun, like glossy plastic.
+                // Flat faces (a resting stone's cap) would flash whole, so it stays on curved parts.
+                half3 h = normalize(mainLight.direction + v);
+                half edge = 1.0h - _HighlightSize;
+                half glint = smoothstep(edge - _BandSoftness * 0.2h, edge + _BandSoftness * 0.2h, saturate(dot(n, h)));
+                glint *= 1.0h - smoothstep(0.996h, 0.9995h, abs(n.y));
+                glint *= _HighlightColor.a * mainLight.shadowAttenuation;
+                color = lerp(color, _HighlightColor.rgb, glint);
 
                 color = lerp(color, _FlashColor.rgb, _FlashColor.a);
                 color = MixFog(color, input.fogFactor);

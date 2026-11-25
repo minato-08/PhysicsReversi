@@ -31,12 +31,16 @@ Material:
     m_Floats:
     - _BandSoftness: 0.03
     - _Bands: 2
+    - _HighlightSize: 0.06
     - _OutlineWidth: 0
     - _ReceiveAmbient: 0.25
     - _RimPower: 3
     m_Colors:
     - _BaseColor: {r: 0.9529412, g: 0.8901961, b: 0.7647059, a: 1}
+    - _FlashColor: {r: 1, g: 1, b: 1, a: 0}
+    - _HighlightColor: {r: 1, g: 1, b: 1, a: 0}
     - _OutlineColor: {r: 0.2, g: 0.15686275, b: 0.2901961, a: 1}
+    - _Pop: {r: 1, g: 1, b: 1, a: 0}
     - _RimColor: {r: 1, g: 1, b: 1, a: 0.25}
     - _ShadowTint: {r: 0.6, g: 0.5647059, b: 0.8, a: 1}
   m_BuildTextureStacks: []
