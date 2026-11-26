@@ -100,6 +100,36 @@ namespace PhysicsReversi.Walk
             IsFlipping = false;
             FlipEnded?.Invoke(this);
         }
+        // Sliding into the middle of its cell after being confirmed (WalkBoardRecognition.snapToCenter).
+        public bool IsSnapping { get; private set; }
+        // Like the flip, a slide that is not the player's doing: what it bumps cannot capture.
+        // The body stays dynamic and collides throughout; a stone in the way can stop it short.
+        public void SnapTo(Vector3 target, float seconds)
+        {
+            if (IsFlipping || IsSnapping || Body == null || Body.isKinematic || status != StoneStatus.OnBoard) return;
+            Motion = new MotionOrigin(false);
+            StartCoroutine(SnapBody(target, Mathf.Max(.05f, seconds)));
+        }
+        IEnumerator SnapBody(Vector3 target, float seconds)
+        {
+            IsSnapping = true; Body.WakeUp();
+            float elapsed = 0;
+            // A little longer than asked, for a stone that was slowed on the way; then it gives up.
+            while (elapsed < seconds + .25f)
+            {
+                yield return new WaitForFixedUpdate();
+                elapsed += Time.fixedDeltaTime;
+                if (status != StoneStatus.OnBoard || IsFlipping || Body.isKinematic) break;
+                Vector3 offset = target - Body.position; offset.y = 0;
+                if (offset.sqrMagnitude < .0004f) break;
+                // Eased in: the speed that arrives exactly on time, never more than a brisk slide.
+                float left = Mathf.Max(seconds - elapsed, Time.fixedDeltaTime * 2);
+                Vector3 want = Vector3.ClampMagnitude(offset / left, 10);
+                Body.linearVelocity = new Vector3(want.x, Body.linearVelocity.y, want.z);
+            }
+            if (Body != null && !Body.isKinematic) Body.linearVelocity = new Vector3(0, Body.linearVelocity.y, 0);
+            IsSnapping = false;
+        }
         readonly HashSet<Collider> boardContacts = new HashSet<Collider>();
         [SerializeField] string recognition = "Not checked";
         public bool TouchingBoard => boardContacts.Count > 0;
@@ -117,7 +147,7 @@ namespace PhysicsReversi.Walk
         // Called by CarryAuthority only.
         public void ReturnToReserve(Vector3 position, Quaternion rotation)
         {
-            StopAllCoroutines(); IsFlipping = false; Motion = null; boardContacts.Clear(); confirmation.Reset();
+            StopAllCoroutines(); IsFlipping = false; IsSnapping = false; Motion = null; boardContacts.Clear(); confirmation.Reset();
             Holder = null; status = StoneStatus.Reserve; ownerId = reserveOwnerId;
             transform.SetPositionAndRotation(position, rotation);
             Body.position = position; Body.rotation = rotation;

@@ -162,8 +162,21 @@ Push Strengthの110は、固定されていない石は動き、確定した石�
 | Full Hold Distance | マスの中心からこの距離までは、Hold Multiplierがそのまま効く | マス | 0.1 | 0.1 |
 | Zero Hold Distance | マスの中心からこの距離で、重さが元に戻る。辺の中点が0.5 | マス | 0.45 | 0.45 |
 | Confirmed Mark | 確定した石のマスの、四隅の印の色。アルファが濃さ | 色 | 淡い緑 | 淡い緑 |
+| Snap To Center | 試している機能。オンにすると、石が確定した瞬間に、マスの中央へ滑って寄る。寄る動きで押された石は、捕獲を起こさない | — | オン（トゥーン版） | オフ |
+| Snap Seconds | 中央へ寄るのにかかる時間 | 秒 | 0.25 | 0.25 |
+| Uniform Hold | 試している機能。オンにすると、確定した石はすべてHold Multiplierの重さになる（中心からの距離を見ない） | — | オン（トゥーン版） | オフ |
 
 `Current board`の下の値（認識の状態、黒と白の数、確定した石の数）は、Play中の様子を見るための表示です。変えても意味はありません。
+
+### 確定した石の上面の輪（Confirmed Look、トゥーン版だけ）
+
+確定した石の上面に細い輪を描きます。描くのはトゥーンシェーダーで、確定した石だけ、材質を輪の付いた版（`WalkAssets/Toon/ToonStoneBlack Confirmed.mat`、`ToonStoneWhite Confirmed.mat`）に差し替えます。輪の見た目は、この2つの材質の次の値で変えます。メニュー`Try Confirmed Stone Snap and Ring (Trial)`を実行し直すと、コードの値に戻ります。
+
+| 項目 | 内容 | 黒の面 | 白の面 |
+|---|---|---|---|
+| Cap Ring Color | 輪の色。アルファが濃さ | ミルク、0.6 | プラム、0.65 |
+| Cap Ring Radius | 輪の半径。石の縁が0.5 | 0.36 | 0.36 |
+| Cap Ring Width | 輪の太さ | 0.05 | 0.05 |
 
 ## 5. `Rules and local input`のWalk Capture Controller
 

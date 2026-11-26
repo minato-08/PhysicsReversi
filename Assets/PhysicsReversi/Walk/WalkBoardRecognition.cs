@@ -25,6 +25,12 @@ namespace PhysicsReversi.Walk
         [Range(0, .5f)] public float fullHoldDistance = .1f;
         [Tooltip("At this distance from the cell's center, in cells, a confirmed stone is not held at all. The middle of an edge is at .5.")]
         [Range(0, .75f)] public float zeroHoldDistance = .45f;
+        [Tooltip("Trial (2026-11-27): a stone slides to the middle of its cell the moment it is confirmed (SPEC.md 試遊で出た課題 2).")]
+        public bool snapToCenter;
+        [Tooltip("How long the slide to the middle takes.")]
+        [Min(.05f)] public float snapSeconds = .25f;
+        [Tooltip("Trial (2026-11-27): every confirmed stone is held at the full Hold Multiplier, however far from the middle it lies. Meant to go with Snap To Center, which puts them all in the middle anyway.")]
+        public bool uniformHold;
         [Tooltip("Color of the corner marks around a confirmed stone. Other recognized cells keep the mark material's own color.")]
         public Color confirmedMark = new Color(.82f, .95f, .9f, 1);
         [Header("Current board")]
@@ -111,14 +117,19 @@ namespace PhysicsReversi.Walk
         void Confirm(float deltaSeconds)
         {
             confirmedStones = 0;
+            if (wasConfirmed == null || wasConfirmed.Length != stones.Length) wasConfirmed = new bool[stones.Length];
             for (int i = 0; i < stones.Length; i++)
             {
                 var stone = stones[i]; if (stone == null) continue;
                 stone.TickConfirmation(System.Array.IndexOf(Snapshot.Ids, i), deltaSeconds, confirmSeconds, loosenSeconds);
                 if (stone.Confirmed) confirmedStones++;
+                // Confirmed since the last sample, by time or by a capture: slide it into the middle.
+                if (snapToCenter && stone.Confirmed && !wasConfirmed[i]) stone.SnapTo(CellCenter(stone.ConfirmedCell, stone.transform.position), snapSeconds);
+                wasConfirmed[i] = stone.Confirmed;
                 // The better a confirmed stone is centered in its cell, the more firmly it is held.
                 float hold = 0;
-                if (stone.Confirmed && holdMultiplier > 1)
+                if (stone.Confirmed && holdMultiplier > 1 && uniformHold) hold = 1;
+                else if (stone.Confirmed && holdMultiplier > 1)
                 {
                     Vector3 local = boardOrigin.InverseTransformPoint(stone.transform.position) / cellWidth;
                     hold = (float)StoneHold.Strength(StoneHold.CenterDistance(local.x, local.z, stone.ConfirmedCell), fullHoldDistance, zeroHoldDistance);
@@ -135,6 +146,16 @@ namespace PhysicsReversi.Walk
                 cell.marker.SetPropertyBlock(id >= 0 && stones[id].ConfirmedCell == cell.cellIndex ? confirmedLook : null);
             }
         }
+        bool[] wasConfirmed;
+
+        // The middle of a cell in the world, at the height of the given point.
+        Vector3 CellCenter(int cell, Vector3 at)
+        {
+            var local = new Vector3((cell % 8 - 3.5f) * cellWidth, 0, (cell / 8 - 3.5f) * cellWidth);
+            var world = boardOrigin.TransformPoint(local); world.y = at.y;
+            return world;
+        }
+
         void OnDisable()
         {
             if (cells == null) return;

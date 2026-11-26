@@ -15,6 +15,10 @@ Shader "PhysicsReversi/ToonLit"
         _OutlineColor ("Outline Color", Color) = (0.2, 0.157, 0.29, 1)
         _OutlineWidth ("Outline Width (px)", Range(0, 10)) = 2
         _ReceiveAmbient ("Receive Ambient", Range(0, 1)) = 0.6
+        // A thin ring drawn flat on the caps of a cylinder (a confirmed stone). Off at alpha 0.
+        _MarkColor ("Cap Ring Color (A = strength)", Color) = (1, 1, 1, 0)
+        _MarkRadius ("Cap Ring Radius (object space)", Range(0, 0.5)) = 0.36
+        _MarkWidth ("Cap Ring Width (object space)", Range(0.001, 0.2)) = 0.03
         // Per-renderer feedback, driven from script through a MaterialPropertyBlock (ToonFx).
         [HideInInspector] _Pop ("Pop Scale", Vector) = (1, 1, 1, 0)
         [HideInInspector] _FlashColor ("Flash Color (A = amount)", Color) = (1, 1, 1, 0)
@@ -48,6 +52,9 @@ Shader "PhysicsReversi/ToonLit"
             half _ReceiveAmbient;
             float4 _Pop;
             half4 _FlashColor;
+            half4 _MarkColor;
+            float _MarkRadius;
+            float _MarkWidth;
         CBUFFER_END
 
         // Squash and stretch for the look only: every pass scales the drawn vertices about the
@@ -96,6 +103,8 @@ Shader "PhysicsReversi/ToonLit"
                 float3 positionWS : TEXCOORD1;
                 half3  normalWS   : TEXCOORD2;
                 half   fogFactor  : TEXCOORD3;
+                float3 positionOS : TEXCOORD4;
+                half   capOS      : TEXCOORD5;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -113,6 +122,8 @@ Shader "PhysicsReversi/ToonLit"
                 output.normalWS = half3(TransformObjectToWorldNormal(input.normalOS));
                 output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
                 output.fogFactor = ComputeFogFactor(pos.positionCS.z);
+                output.positionOS = input.positionOS.xyz;
+                output.capOS = half(abs(input.normalOS.y));
                 return output;
             }
 
@@ -176,6 +187,16 @@ Shader "PhysicsReversi/ToonLit"
                 glint *= 1.0h - smoothstep(0.996h, 0.9995h, abs(n.y));
                 glint *= _HighlightColor.a * mainLight.shadowAttenuation;
                 color = lerp(color, _HighlightColor.rgb, glint);
+
+                // The cap ring: on the flat caps only, a crisp line of even width at any distance.
+                if (_MarkColor.a > 0.0h)
+                {
+                    float r = length(input.positionOS.xz);
+                    float d = abs(r - _MarkRadius) - _MarkWidth * 0.5;
+                    float aa = max(fwidth(r), 1e-5);
+                    half ring = half(1.0 - smoothstep(-aa, aa, d)) * step(0.9h, input.capOS);
+                    color = lerp(color, _MarkColor.rgb, ring * _MarkColor.a);
+                }
 
                 color = lerp(color, _FlashColor.rgb, _FlashColor.a);
                 color = MixFog(color, input.fogFactor);
