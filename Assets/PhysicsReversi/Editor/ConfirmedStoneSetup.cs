@@ -17,6 +17,8 @@ namespace PhysicsReversi.Editor
         // 0 plain, 1 stripes, 2 dots; and blinks per second, 0 for steady.
         const int Pattern = 1;
         const float Blink = 0;
+        // How far the stones' outline is drawn toward the camera (world units).
+        const float OutlinePull = .18f;
 
         [MenuItem("Physics Reversi/Walk/Try Confirmed Stone Snap and Loose Look (Trial)")]
         public static void Apply()
@@ -31,8 +33,8 @@ namespace PhysicsReversi.Editor
             // Yellow, the colour that already means "grabbable" (the grab outline): a loose stone on
             // the board is exactly one that can be grabbed. Stripes on the caps and a yellow outline.
             // Strong on white, where pale yellow on milk hardly shows; on black a thin yellow turns muddy.
-            var black = Overlay("ToonStoneBlack", Palette.Accent, .5f);
-            var white = Overlay("ToonStoneWhite", Palette.Accent, .85f);
+            var black = Overlay("ToonStoneBlack", Palette.Accent, .4f);
+            var white = Overlay("ToonStoneWhite", Palette.Accent, .75f);
             if (black.plain == null || white.plain == null) { Debug.LogError("The toon stone materials are missing; run Apply Toon Look first."); return; }
 
             Undo.RecordObject(recognition, "Try confirmed stone snap");
@@ -52,6 +54,9 @@ namespace PhysicsReversi.Editor
         {
             var plain = AssetDatabase.LoadAssetAtPath<Material>(Dir + name + ".mat");
             if (plain == null) return (null, null);
+            // The stones' near rim keeps its outline (see _OutlineDepthBias in ToonLit.shader); for
+            // confirmed and loose stones alike, so both read the same.
+            plain.SetFloat("_OutlineDepthBias", OutlinePull); EditorUtility.SetDirty(plain);
             string path = Dir + name + " Loose.mat";
             var overlay = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (overlay == null) { overlay = new Material(plain) { name = name + " Loose" }; AssetDatabase.CreateAsset(overlay, path); }

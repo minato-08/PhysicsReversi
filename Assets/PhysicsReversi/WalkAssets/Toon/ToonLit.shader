@@ -14,6 +14,10 @@ Shader "PhysicsReversi/ToonLit"
         _HighlightSize ("Highlight Size", Range(0.001, 0.5)) = 0.06
         _OutlineColor ("Outline Color", Color) = (0.2, 0.157, 0.29, 1)
         _OutlineWidth ("Outline Width (px)", Range(0, 10)) = 2
+        // Draws the outline this far nearer the camera (world units), along the line of sight, so it
+        // stays on screen where it is. Without it, the near rim of a thin thing lying on a surface
+        // (a stone on the board) loses its outline: the hull there is behind the surface in front.
+        _OutlineDepthBias ("Outline Pull Toward Camera (world)", Range(0, 2)) = 0
         _ReceiveAmbient ("Receive Ambient", Range(0, 1)) = 0.6
         // A faint overlay on the caps of a stone that is not confirmed yet. Off at alpha 0.
         _LooseColor ("Loose Overlay Color (A = strength)", Color) = (1, 1, 1, 0)
@@ -50,6 +54,7 @@ Shader "PhysicsReversi/ToonLit"
             half _HighlightSize;
             half4 _OutlineColor;
             float _OutlineWidth;
+            float _OutlineDepthBias;
             half _ReceiveAmbient;
             float4 _Pop;
             half4 _FlashColor;
@@ -267,7 +272,9 @@ Shader "PhysicsReversi/ToonLit"
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-                float4 positionCS = TransformObjectToHClip(PopOS(input.positionOS.xyz));
+                float3 positionWS = TransformObjectToWorld(PopOS(input.positionOS.xyz));
+                positionWS += normalize(GetCameraPositionWS() - positionWS) * _OutlineDepthBias;
+                float4 positionCS = TransformWorldToHClip(positionWS);
                 float3 normalOS = dot(input.outlineOS, input.outlineOS) > .25 ? input.outlineOS : input.normalOS;
                 float3 normalWS = TransformObjectToWorldNormal(normalOS);
                 float2 normalCS = mul((float3x3)GetWorldToHClipMatrix(), normalWS).xy;

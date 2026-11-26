@@ -32,6 +32,12 @@ Material:
     - _BandSoftness: 0.03
     - _Bands: 2
     - _HighlightSize: 0.03
+    - _LoosePattern: 1
+    - _LoosePulse: 0
+    - _LooseScale: 7
+    - _MarkRadius: 0.36
+    - _MarkWidth: 0.03
+    - _OutlineDepthBias: 0.18
     - _OutlineWidth: 3
     - _ReceiveAmbient: 0.25
     - _RimPower: 3
@@ -39,6 +45,8 @@ Material:
     - _BaseColor: {r: 0.18039216, g: 0.2, b: 0.3137255, a: 1}
     - _FlashColor: {r: 1, g: 1, b: 1, a: 0}
     - _HighlightColor: {r: 1, g: 1, b: 1, a: 0}
+    - _LooseColor: {r: 1, g: 1, b: 1, a: 0}
+    - _MarkColor: {r: 1, g: 1, b: 1, a: 0}
     - _OutlineColor: {r: 0.2, g: 0.15686275, b: 0.2901961, a: 1}
     - _Pop: {r: 1, g: 1, b: 1, a: 0}
     - _RimColor: {r: 1, g: 1, b: 1, a: 0.25}
