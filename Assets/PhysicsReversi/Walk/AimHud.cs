@@ -46,7 +46,9 @@ namespace PhysicsReversi.Walk
                 var filter = highlight.GetComponent<MeshFilter>();
                 if (filter.sharedMesh != mesh) filter.sharedMesh = mesh;
                 highlight.transform.SetPositionAndRotation(stone.transform.position, stone.transform.rotation);
-                highlight.transform.localScale = stone.transform.lossyScale;
+                // The stone's toon shader squashes and stretches its drawn shape on grabs, catches
+                // and landings (ToonFx); the outline follows, or it would stay at rest size around it.
+                highlight.transform.localScale = Vector3.Scale(stone.transform.lossyScale, ToonFx.CurrentPop(stone.GetComponent<Renderer>()));
                 if (block == null) block = new MaterialPropertyBlock();
                 // 0 while merely carrying; rises to 1 as a throw charges.
                 float charge = held != null && input.authority != null ? Mathf.Max(0, input.authority.Charge(player)) : 0;
