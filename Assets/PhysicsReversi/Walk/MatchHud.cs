@@ -43,8 +43,17 @@ namespace PhysicsReversi.Walk
         public RectTransform[] pins;
         [Tooltip("How far above a player's feet its pin points (world units).")]
         public float pinHeight = 3.4f;
-        [Tooltip("GO! stays this long after the countdown.")]
-        public float goSeconds = .8f;
+        [Header("GO!")]
+        [Tooltip("GO! stays this long after the countdown, from its entrance to its exit.")]
+        public float goSeconds = 1.1f;
+        [Tooltip("The entrance: it swells from small to Go Size in this long.")]
+        public float goIn = .16f;
+        [Tooltip("The size it swells to, then holds while growing very slowly by Go Drift.")]
+        public float goSize = 1.15f;
+        public float goDrift = .07f;
+        [Tooltip("The exit at the end: a little swell (the anticipation) by Go Swell, then a quick shrink to nothing, in this long all told.")]
+        public float goOut = .24f;
+        public float goSwell = .1f;
 
         [Header("Time up and result")]
         public GameObject timeUp;
@@ -141,8 +150,40 @@ namespace PhysicsReversi.Walk
             SetActive(countdownIntro, counting);
             if (!counting && !go) { lastCountdown = null; return; }
             string value = counting ? Mathf.CeilToInt(match.countdownSeconds - match.PhaseTime).ToString() : "GO!";
-            if (value != lastCountdown && countdownNumber != null) { SetText(countdownNumber, value); Pop(countdownNumber.rectTransform); lastCountdown = value; }
-            if (counting) PlacePins();
+            if (value != lastCountdown && countdownNumber != null)
+            {
+                SetText(countdownNumber, value); lastCountdown = value;
+                if (counting) Pop(countdownNumber.rectTransform); else pops.Remove(countdownNumber.rectTransform);
+            }
+            if (counting) { if (countdownNumber != null) countdownNumber.alpha = 1; PlacePins(); }
+            else if (countdownNumber != null) Go(match.PhaseTime);
+        }
+
+        // GO! in four beats: it swells in, holds while growing very slightly, swells a little more
+        // (the anticipation), then shrinks away fast and fades.
+        void Go(float t)
+        {
+            float scale, alpha = 1;
+            float outStart = goSeconds - goOut, swellEnd = outStart + goOut * .35f;
+            if (t < goIn)
+            {
+                float u = t / goIn;
+                scale = Mathf.Lerp(.3f, goSize, 1 - (1 - u) * (1 - u) * (1 - u));
+            }
+            else if (t < outStart) scale = goSize + goDrift * Mathf.InverseLerp(goIn, outStart, t);
+            else if (t < swellEnd)
+            {
+                float u = Mathf.InverseLerp(outStart, swellEnd, t);
+                scale = goSize + goDrift + goSwell * (1 - (1 - u) * (1 - u));
+            }
+            else
+            {
+                float u = Mathf.InverseLerp(swellEnd, goSeconds, t);
+                scale = (goSize + goDrift + goSwell) * (1 - u * u);
+                alpha = 1 - u;
+            }
+            countdownNumber.rectTransform.localScale = Vector3.one * Mathf.Max(0, scale);
+            countdownNumber.alpha = alpha;
         }
 
         // Each pin hangs over its player's head, so a first-time player can see which figure is theirs.
