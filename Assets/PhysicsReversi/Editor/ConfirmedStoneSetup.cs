@@ -28,9 +28,11 @@ namespace PhysicsReversi.Editor
             foreach (var root in scene.GetRootGameObjects()) if (recognition == null) recognition = root.GetComponentInChildren<WalkBoardRecognition>(true);
             if (recognition == null || recognition.stones == null || recognition.stones.Length == 0) { Debug.LogError("No board recognition with stones."); return; }
 
-            // On a black cap the overlay is milk, on a white cap the outline plum; both faint.
-            var black = Overlay("ToonStoneBlack", Palette.StoneWhite, .22f);
-            var white = Overlay("ToonStoneWhite", Palette.Outline, .16f);
+            // Yellow stripes, the colour that already means "grabbable" (the grab outline): a loose
+            // stone on the board is exactly one that can be grabbed. Stronger on black, where
+            // yellow mixed thinly into the ink turns muddy.
+            var black = Overlay("ToonStoneBlack", Palette.Accent, .5f);
+            var white = Overlay("ToonStoneWhite", Palette.Accent, .55f);
             if (black.plain == null || white.plain == null) { Debug.LogError("The toon stone materials are missing; run Apply Toon Look first."); return; }
 
             Undo.RecordObject(recognition, "Try confirmed stone snap");

@@ -170,11 +170,11 @@ Push Strengthの110は、固定されていない石は動き、確定した石�
 
 ### 未確定の石の模様（Loose Stone Look、トゥーン版だけ）
 
-盤の上のまだ確定していない石の上面に、うっすらと模様を重ねます。確定した石は何も付きません。描くのはトゥーンシェーダーで、未確定の石だけ、材質を模様の付いた版（`WalkAssets/Toon/ToonStoneBlack Loose.mat`、`ToonStoneWhite Loose.mat`）に差し替えます。模様は、この2つの材質の次の値で変えます。Play中に変えた値も材質に残ります。メニュー`Try Confirmed Stone Snap and Loose Look (Trial)`を実行し直すと、コードの値（`ConfirmedStoneSetup.cs`の`Pattern`と`Blink`）に戻ります。
+盤の上のまだ確定していない石に、上面から側面まで、うっすらと模様を重ねます。確定した石は何も付きません。描くのはトゥーンシェーダーで、未確定の石だけ、材質を模様の付いた版（`WalkAssets/Toon/ToonStoneBlack Loose.mat`、`ToonStoneWhite Loose.mat`）に差し替えます。模様は、この2つの材質の次の値で変えます。Play中に変えた値も材質に残ります。メニュー`Try Confirmed Stone Snap and Loose Look (Trial)`を実行し直すと、コードの値（`ConfirmedStoneSetup.cs`の`Pattern`と`Blink`）に戻ります。
 
 | 項目 | 内容 | 黒の面 | 白の面 |
 |---|---|---|---|
-| Loose Overlay Color | 模様の色。アルファが濃さ | ミルク、0.22 | プラム、0.16 |
+| Loose Overlay Color | 模様の色。アルファが濃さ。黄色は掴める石の輪郭と同じ色で、「掴める」の印としてそろえている | 黄、0.5 | 黄、0.55 |
 | Loose Overlay Pattern | 模様の形。Plain（無地）、Stripes（斜めの縞）、Dots（水玉） | Stripes | Stripes |
 | Loose Overlay Density | 模様の細かさ（石の幅あたりの繰り返しの数） | 7 | 7 |
 | Loose Overlay Blink | 1秒あたりの点滅の回数。0なら点滅しない | 0 | 0 |

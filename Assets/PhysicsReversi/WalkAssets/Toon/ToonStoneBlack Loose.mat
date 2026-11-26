@@ -44,7 +44,7 @@ Material:
     - _BaseColor: {r: 0.18039216, g: 0.2, b: 0.3137255, a: 1}
     - _FlashColor: {r: 1, g: 1, b: 1, a: 0}
     - _HighlightColor: {r: 1, g: 1, b: 1, a: 0}
-    - _LooseColor: {r: 1, g: 0.9764706, b: 0.93333334, a: 0.22}
+    - _LooseColor: {r: 1, g: 0.7882353, b: 0.23529412, a: 0.5}
     - _MarkColor: {r: 1, g: 1, b: 1, a: 0}
     - _OutlineColor: {r: 0.2, g: 0.15686275, b: 0.2901961, a: 1}
     - _Pop: {r: 1, g: 1, b: 1, a: 0}
