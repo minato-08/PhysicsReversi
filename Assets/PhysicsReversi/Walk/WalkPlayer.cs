@@ -9,7 +9,18 @@ namespace PhysicsReversi.Walk
         public Transform carryPoint;
         [Tooltip("The values both players share (speed, push, pick-up, sway). Empty: the scene's Player Tuning is found at start.")]
         public PlayerTuning tuning;
-        public PlayerTuning Tuning { get { if (tuning == null) tuning = PlayerTuning.Find(); return tuning; } }
+        public PlayerTuning Tuning
+        {
+            get
+            {
+                if (tuning != null) { hadTuning = true; return tuning; }
+                // When Play stops, the scene's tuning can be destroyed before this player. Its values
+                // can still be read, and looking for another one then would make a stray object.
+                if (hadTuning) return tuning;
+                tuning = PlayerTuning.Find(); return tuning;
+            }
+        }
+        bool hadTuning;
         public CarryStone HeldStone { get; private set; }
         public bool HasMovementInput => movement.sqrMagnitude > .001f;
         public bool HasManipulationInput => HasMovementInput;
@@ -197,7 +208,7 @@ namespace PhysicsReversi.Walk
             foreach (var shape in heldColliders) Physics.IgnoreCollision(controller, shape, true);
         }
         // Put down with a modest amount of walking momentum rather than a launch impulse.
-        public void Detach() => Detach(movement * Tuning.moveSpeed * .35f);
+        public void Detach() { if (HeldStone != null) Detach(movement * Tuning.moveSpeed * .35f); }
         // A throw leaves with the velocity it is given.
         public void Detach(Vector3 velocity)
         {
