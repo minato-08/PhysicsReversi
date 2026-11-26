@@ -14,7 +14,7 @@ namespace PhysicsReversi.Walk
 
         sealed class Effect
         {
-            public Vector3 peak; public float popTime, popDuration;
+            public Vector3 peak; public float popStart, popDuration;
             public Color flash; public float flashTime, flashDuration;
         }
         readonly Dictionary<Renderer, Effect> active = new Dictionary<Renderer, Effect>();
@@ -35,7 +35,24 @@ namespace PhysicsReversi.Walk
         {
             if (renderer == null || duration <= 0) return;
             var effect = Driver.Get(renderer);
-            effect.peak = peak; effect.popTime = 0; effect.popDuration = duration;
+            effect.peak = peak; effect.popStart = Time.time; effect.popDuration = duration;
+        }
+
+        // How much the renderer's drawn shape is scaled right now (per object axis); one when it
+        // is not popping. For things drawn over the stone, such as its highlight outline, so they
+        // grow and shrink with it. Worked out from the time, so it agrees with the shader in any
+        // script order.
+        public static Vector3 CurrentPop(Renderer renderer)
+        {
+            if (driver == null || renderer == null || !driver.active.TryGetValue(renderer, out var effect)) return Vector3.one;
+            return PopScale(effect);
+        }
+
+        static Vector3 PopScale(Effect effect)
+        {
+            if (effect.popDuration <= 0) return Vector3.one;
+            float t = (Time.time - effect.popStart) / effect.popDuration;
+            return t < 1 ? Vector3.LerpUnclamped(Vector3.one, effect.peak, PopCurve(t)) : Vector3.one;
         }
 
         // Tints toward colour (alpha = strength) and fades out.
@@ -65,9 +82,7 @@ namespace PhysicsReversi.Walk
                 bool running = false;
                 if (effect.popDuration > 0)
                 {
-                    effect.popTime += dt;
-                    float t = effect.popTime / effect.popDuration;
-                    if (t < 1) { scale = Vector3.LerpUnclamped(Vector3.one, effect.peak, PopCurve(t)); running = true; }
+                    if (Time.time - effect.popStart < effect.popDuration) { scale = PopScale(effect); running = true; }
                     else effect.popDuration = -1;
                 }
                 if (effect.flashDuration > 0)
