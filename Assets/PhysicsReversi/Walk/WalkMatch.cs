@@ -24,6 +24,8 @@ namespace PhysicsReversi.Walk
         [Min(0)] public float maxSettleSeconds = 4;
         [Tooltip("The result stays this long before a button can start the next match.")]
         [Min(0)] public float restartLockSeconds = 1;
+        [Tooltip("When set, the next match can be started only once the counted stones have been stacked.")]
+        public ResultStacker stacker;
         public Text timerText;
         public Text bannerText;
         public Text hintText;
@@ -58,7 +60,7 @@ namespace PhysicsReversi.Walk
                     if ((phaseTime >= settleSeconds && !AnyMoving()) || phaseTime >= maxSettleSeconds) Enter(Phase.Finished);
                     break;
                 case Phase.Finished:
-                    if (phaseTime >= restartLockSeconds)
+                    if (phaseTime >= restartLockSeconds && (stacker == null || stacker.Done))
                     {
                         SetText(hintText, restartHint);
                         // Reloading rebuilds the board, the reserves and both players as authored.

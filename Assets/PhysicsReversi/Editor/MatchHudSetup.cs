@@ -55,6 +55,7 @@ namespace PhysicsReversi.Editor
             scaler.referenceResolution = new Vector2(1280, 720); scaler.matchWidthOrHeight = .5f;
             var hud = root.GetComponent<MatchHud>();
             hud.match = match; hud.recognition = recognition; hud.input = input; hud.view = input.view;
+            hud.stacker = AddStacker(scene, match, recognition, input.view);
 
             BuildScoreBar(root.transform, hud);
             BuildControls(root.transform, true);
@@ -173,9 +174,11 @@ namespace PhysicsReversi.Editor
         {
             var group = Node(parent, "Result", new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
             Stretch(group, 0, 0);
-            var title = Text(group, "Title", "BLACK WINS", 64, Milk, outlined, TextAlignmentOptions.Center);
+            // Used only when there is no stacker: the result as text floating over the board.
+            var floating = Node(group, "Floating", new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
+            var title = Text(floating, "Title", "BLACK WINS", 64, Milk, outlined, TextAlignmentOptions.Center);
             title.rectTransform.anchoredPosition = new Vector2(0, 70); title.rectTransform.sizeDelta = new Vector2(900, 100);
-            var score = Node(group, "Score", new Vector2(.5f, .5f), new Vector2(0, -20), Vector2.zero);
+            var score = Node(floating, "Score", new Vector2(.5f, .5f), new Vector2(0, -20), Vector2.zero);
             var row = score.gameObject.AddComponent<HorizontalLayoutGroup>();
             row.spacing = 18; row.childAlignment = TextAnchor.MiddleCenter;
             row.childControlWidth = row.childControlHeight = true; row.childForceExpandWidth = row.childForceExpandHeight = false;
@@ -194,8 +197,38 @@ namespace PhysicsReversi.Editor
             Fit(hint.gameObject);
             Word(hint, "Press"); Key(hint, "F"); Key(hint, "H"); Word(hint, "or"); Pad(hint); Word(hint, "to play again");
 
+            // On the stacks: each count stands over its stack's top, with WIN! (or DRAW) above it.
+            foreach (int owner in new[] { 1, 2 })
+            {
+                bool isBlack = owner == 1;
+                var label = Node(group, isBlack ? "Stack Black" : "Stack White", new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
+                label.pivot = new Vector2(.5f, 0);
+                var count = Text(label, "Count", "0", 56, Milk, heavy, TextAlignmentOptions.Bottom);
+                count.rectTransform.anchorMin = count.rectTransform.anchorMax = new Vector2(.5f, 0); count.rectTransform.pivot = new Vector2(.5f, 0);
+                count.rectTransform.anchoredPosition = Vector2.zero; count.rectTransform.sizeDelta = new Vector2(160, 64);
+                var win = Text(label, "Win", "WIN!", 40, Palette.Accent, outlined, TextAlignmentOptions.Bottom);
+                win.rectTransform.anchorMin = win.rectTransform.anchorMax = new Vector2(.5f, 0); win.rectTransform.pivot = new Vector2(.5f, 0);
+                win.rectTransform.anchoredPosition = new Vector2(0, 62); win.rectTransform.sizeDelta = new Vector2(200, 48);
+                win.gameObject.SetActive(false);
+                if (isBlack) { hud.stackLabelBlack = label; hud.stackCountBlack = count; hud.winBlack = win; }
+                else { hud.stackLabelWhite = label; hud.stackCountWhite = count; hud.winWhite = win; }
+            }
+
+            hud.floatingResult = floating.gameObject;
             hud.result = group.gameObject; hud.resultTitle = title; hud.resultBlack = black; hud.resultWhite = white; hud.restartHint = hint.gameObject;
             group.gameObject.SetActive(false);
+        }
+
+        // The result count that stacks the stones (ResultStacker) sits with the match. Its tuned values
+        // are kept on a rerun; only the references are filled in.
+        static ResultStacker AddStacker(Scene scene, WalkMatch match, WalkBoardRecognition recognition, Camera view)
+        {
+            var stacker = match.GetComponent<ResultStacker>();
+            if (stacker == null) stacker = Undo.AddComponent<ResultStacker>(match.gameObject);
+            Undo.RecordObject(stacker, "Stack the result"); Undo.RecordObject(match, "Stack the result");
+            stacker.match = match; stacker.recognition = recognition; stacker.captures = Find<WalkCaptureController>(scene); stacker.view = view;
+            match.stacker = stacker;
+            return stacker;
         }
 
         // The old HUD stays in the scene, switched off: the Score Panel and the match's own texts.
