@@ -27,7 +27,7 @@ namespace PhysicsReversi.Editor
 
         static Sprite roundBox, circle, triangle;
         static TMP_FontAsset font;
-        static Material plain, outlined, heavy;
+        static Material plain, fine, outlined, heavy;
         static Color Plum => Palette.Outline;
         static Color Milk => Palette.StoneWhite;
         static Color Ink => Palette.StoneBlack;
@@ -162,7 +162,7 @@ namespace PhysicsReversi.Editor
             var group = Node(parent, "Time Up", new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
             var big = Text(group, "Title", "TIME UP!", 110, Palette.Accent, heavy, TextAlignmentOptions.Center);
             big.rectTransform.anchoredPosition = new Vector2(0, 29); big.rectTransform.sizeDelta = new Vector2(900, 160);
-            var sub = Text(group, "Counting", "Counting stones…", 24, Milk, outlined, TextAlignmentOptions.Center);
+            var sub = Text(group, "Counting", "Counting stones…", 24, Milk, fine, TextAlignmentOptions.Center);
             sub.rectTransform.anchoredPosition = new Vector2(0, -79); sub.rectTransform.sizeDelta = new Vector2(600, 40);
             hud.timeUp = group.gameObject; group.gameObject.SetActive(false);
         }
@@ -173,7 +173,7 @@ namespace PhysicsReversi.Editor
         {
             var group = Node(parent, "Result", new Vector2(.5f, .5f), Vector2.zero, Vector2.zero);
             Stretch(group, 0, 0);
-            var title = Text(group, "Title", "BLACK WINS", 64, Milk, heavy, TextAlignmentOptions.Center);
+            var title = Text(group, "Title", "BLACK WINS", 64, Milk, outlined, TextAlignmentOptions.Center);
             title.rectTransform.anchoredPosition = new Vector2(0, 70); title.rectTransform.sizeDelta = new Vector2(900, 100);
             var score = Node(group, "Score", new Vector2(.5f, .5f), new Vector2(0, -20), Vector2.zero);
             var row = score.gameObject.AddComponent<HorizontalLayoutGroup>();
@@ -181,9 +181,9 @@ namespace PhysicsReversi.Editor
             row.childControlWidth = row.childControlHeight = true; row.childForceExpandWidth = row.childForceExpandHeight = false;
             Fit(score.gameObject);
             Sized(Chip(score, "Black Chip", Vector2.zero, 40, Ink), 40, 40);
-            var black = Text(score, "Black", "0", 72, Milk, outlined, TextAlignmentOptions.Center);
+            var black = Text(score, "Black", "0", 72, Milk, heavy, TextAlignmentOptions.Center);
             Text(score, "Dash", "–", 44, Milk, outlined, TextAlignmentOptions.Center);
-            var white = Text(score, "White", "0", 72, Milk, outlined, TextAlignmentOptions.Center);
+            var white = Text(score, "White", "0", 72, Milk, heavy, TextAlignmentOptions.Center);
             Sized(Chip(score, "White Chip", Vector2.zero, 40, Milk), 40, 40);
 
             var hint = Node(group, "Play Again", new Vector2(.5f, 0), Vector2.zero, Vector2.zero);
@@ -324,7 +324,7 @@ namespace PhysicsReversi.Editor
 
         static void Word(Transform parent, string value)
         {
-            var text = Text(parent, value, value, 15, Milk, outlined, TextAlignmentOptions.Center);
+            var text = Text(parent, value, value, 15, Milk, fine, TextAlignmentOptions.Center);
             text.margin = new Vector4(3, 0, 3, 0);
         }
 
@@ -412,12 +412,16 @@ namespace PhysicsReversi.Editor
                 if (!string.IsNullOrEmpty(missing)) Debug.LogWarning("Fredoka lacks: " + missing);
                 EditorUtility.SetDirty(font); AssetDatabase.SaveAssets();
             }
+            // An outline comes out about 0.47 x width x font size pixels wide (measured 2026-11-27 at
+            // 1280x720), so one width per band of sizes gives the mock-ups' strokes: about 2-3 px on
+            // small words, 3 px on the counts, 6-7 px on the big titles.
             plain = font.material;
-            outlined = Preset("Fredoka Outlined", .42f, .3f);
-            heavy = Preset("Fredoka Heavy Outline", .3f, .22f);
+            fine = Preset("Fredoka Fine Outline", .28f);       // 15-24 pt: the controls, short notes
+            outlined = Preset("Fredoka Outlined", .18f);       // 26-64 pt: the counts, gains, result title
+            heavy = Preset("Fredoka Heavy Outline", .11f);     // 72-150 pt: the countdown, TIME UP, result numbers
         }
 
-        static Material Preset(string name, float width, float dilate)
+        static Material Preset(string name, float width)
         {
             string path = FontDir + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -427,8 +431,8 @@ namespace PhysicsReversi.Editor
             material.shader = Shader.Find("TextMeshPro/Distance Field");
             material.SetFloat(ShaderUtilities.ID_OutlineWidth, width);
             material.SetColor(ShaderUtilities.ID_OutlineColor, Plum);
-            // The outline straddles the letter's edge; swelling the face keeps the letters as bold as before.
-            material.SetFloat(ShaderUtilities.ID_FaceDilate, dilate);
+            // The outline straddles the letter's edge; swelling the face by half of it keeps the letters as bold.
+            material.SetFloat(ShaderUtilities.ID_FaceDilate, width * .5f);
             EditorUtility.SetDirty(material);
             return material;
         }

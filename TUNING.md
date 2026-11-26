@@ -257,7 +257,13 @@ Push Strengthの110は、固定されていない石は動き、確定した石�
 | Pin Height | カウントダウン中の名前の札を、人形の足元からどれだけ上に出すか | m | 3.4 |
 | Go Seconds | 「GO!」を出しておく時間 | 秒 | 0.8 |
 
-文字の縁取りの太さは、材質`Fonts/Fredoka Outlined.mat`（数字、操作の説明）と`Fonts/Fredoka Heavy Outline.mat`（カウントダウンなどの大きな文字）の`Outline Thickness`で変わります。メニューを実行し直すと、この2つの値はコードの値に戻ります。
+文字の縁取りの太さは、3つの材質の`Outline Thickness`で変わります。縁の太さは、およそ「この値 × 文字の大きさ × 0.47」pxです（1280×720で測った）。メニューを実行し直すと、コードの値に戻ります。
+
+| 材質 | 使う文字 | 値 | 縁の太さ |
+|---|---|---|---|
+| `Fonts/Fredoka Fine Outline.mat` | 操作の説明、「Counting stones…」、次の1局の案内（15〜24） | 0.28 | 約2〜3px |
+| `Fonts/Fredoka Outlined.mat` | 石の数、「+1」、結果の勝敗（26〜64） | 0.18 | 約3〜5px |
+| `Fonts/Fredoka Heavy Outline.mat` | カウントダウン、TIME UP!、結果の数（72〜150） | 0.11 | 約4〜8px |
 
 ## 10. `Contact Shadows`（トゥーン版だけ）
 
