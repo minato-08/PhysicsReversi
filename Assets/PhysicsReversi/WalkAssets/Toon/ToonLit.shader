@@ -15,7 +15,7 @@ Shader "PhysicsReversi/ToonLit"
         _OutlineColor ("Outline Color", Color) = (0.2, 0.157, 0.29, 1)
         _OutlineWidth ("Outline Width (px)", Range(0, 10)) = 2
         _ReceiveAmbient ("Receive Ambient", Range(0, 1)) = 0.6
-        // A faint overlay over a stone that is not confirmed yet, caps and edge alike. Off at alpha 0.
+        // A faint overlay on the caps of a stone that is not confirmed yet. Off at alpha 0.
         _LooseColor ("Loose Overlay Color (A = strength)", Color) = (1, 1, 1, 0)
         [Enum(Plain,0,Stripes,1,Dots,2)] _LoosePattern ("Loose Overlay Pattern", Float) = 1
         _LooseScale ("Loose Overlay Density (repeats per unit)", Range(1, 20)) = 7
@@ -106,6 +106,7 @@ Shader "PhysicsReversi/ToonLit"
                 half3  normalWS   : TEXCOORD2;
                 half   fogFactor  : TEXCOORD3;
                 float3 positionOS : TEXCOORD4;
+                half   capOS      : TEXCOORD5;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -124,6 +125,7 @@ Shader "PhysicsReversi/ToonLit"
                 output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
                 output.fogFactor = ComputeFogFactor(pos.positionCS.z);
                 output.positionOS = input.positionOS.xyz;
+                output.capOS = half(abs(input.normalOS.y));
                 return output;
             }
 
@@ -188,9 +190,8 @@ Shader "PhysicsReversi/ToonLit"
                 glint *= _HighlightColor.a * mainLight.shadowAttenuation;
                 color = lerp(color, _HighlightColor.rgb, glint);
 
-                // The loose overlay: plain, diagonal stripes or dots, laid in the stone's own space so
-                // it turns with the stone, and optionally blinking. It covers the edge as well as the
-                // caps; the stripes run on from a cap down the edge, since both use the same x and z.
+                // The loose overlay, on the flat caps only: plain, diagonal stripes or dots, laid in
+                // the stone's own space so it turns with the stone, and optionally blinking.
                 if (_LooseColor.a > 0.0h)
                 {
                     float2 p = input.positionOS.xz * _LooseScale;
@@ -211,7 +212,7 @@ Shader "PhysicsReversi/ToonLit"
                         cover = half(1.0 - smoothstep(-w, w, d));
                     }
                     half blink = _LoosePulse > 0.0 ? half(0.55 + 0.45 * sin(_Time.y * 6.2832 * _LoosePulse)) : 1.0h;
-                    color = lerp(color, _LooseColor.rgb, cover * blink * _LooseColor.a);
+                    color = lerp(color, _LooseColor.rgb, cover * blink * _LooseColor.a * step(0.9h, input.capOS));
                 }
 
                 color = lerp(color, _FlashColor.rgb, _FlashColor.a);

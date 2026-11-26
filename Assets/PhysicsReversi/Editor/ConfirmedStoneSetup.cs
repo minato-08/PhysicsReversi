@@ -28,11 +28,11 @@ namespace PhysicsReversi.Editor
             foreach (var root in scene.GetRootGameObjects()) if (recognition == null) recognition = root.GetComponentInChildren<WalkBoardRecognition>(true);
             if (recognition == null || recognition.stones == null || recognition.stones.Length == 0) { Debug.LogError("No board recognition with stones."); return; }
 
-            // Yellow stripes, the colour that already means "grabbable" (the grab outline): a loose
-            // stone on the board is exactly one that can be grabbed. Stronger on black, where
-            // yellow mixed thinly into the ink turns muddy.
+            // Yellow, the colour that already means "grabbable" (the grab outline): a loose stone on
+            // the board is exactly one that can be grabbed. Stripes on the caps and a yellow outline.
+            // Strong on white, where pale yellow on milk hardly shows; on black a thin yellow turns muddy.
             var black = Overlay("ToonStoneBlack", Palette.Accent, .5f);
-            var white = Overlay("ToonStoneWhite", Palette.Accent, .55f);
+            var white = Overlay("ToonStoneWhite", Palette.Accent, .85f);
             if (black.plain == null || white.plain == null) { Debug.LogError("The toon stone materials are missing; run Apply Toon Look first."); return; }
 
             Undo.RecordObject(recognition, "Try confirmed stone snap");
@@ -61,6 +61,7 @@ namespace PhysicsReversi.Editor
             overlay.SetFloat("_LoosePattern", Pattern);
             overlay.SetFloat("_LooseScale", 7);
             overlay.SetFloat("_LoosePulse", Blink);
+            overlay.SetColor("_OutlineColor", Palette.Accent);
             EditorUtility.SetDirty(overlay);
             return (plain, overlay);
         }
