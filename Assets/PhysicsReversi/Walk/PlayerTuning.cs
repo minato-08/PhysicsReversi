@@ -79,7 +79,7 @@ namespace PhysicsReversi.Walk
             if (found != null) return found;
             found = FindAnyObjectByType<PlayerTuning>();
             if (found != null || !Application.isPlaying) return found;
-            Debug.LogWarning("No Player Tuning in the scene; the players use the default values. Run Physics Reversi/Walk/Gather Player Tuning.");
+            Debug.LogWarning("No Player Tuning in the scene; the players use the default values. Run Physics Reversi/Walk/Add Player Tuning.");
             found = new GameObject("Player Tuning (defaults)").AddComponent<PlayerTuning>();
             return found;
         }

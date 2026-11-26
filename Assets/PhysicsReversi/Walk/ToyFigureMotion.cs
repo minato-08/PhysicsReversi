@@ -14,12 +14,6 @@ namespace PhysicsReversi.Walk
         public Transform leftHand, rightHand;
 
         // The animation values are shared by both figures and live in Player Tuning (2026-11-27).
-        // These hidden copies are kept only so that Gather Player Tuning can move the scene's
-        // values there; removed after that.
-        [SerializeField, HideInInspector] float stepRate = 3.2f, bobHeight = .12f, waddle = 7, footStride = .28f, footLift = .14f;
-        [SerializeField, HideInInspector] float breathRate = .6f, breathAmount = .025f;
-        [SerializeField, HideInInspector] Vector3 holdReach = new Vector3(0, .35f, .45f);
-        [SerializeField, HideInInspector] float liftDip = .14f, liftLean = 16, catchSquash = .2f, readyLean = 14, blend = 10;
 
         PlayerTuning T => player != null ? player.Tuning : PlayerTuning.Find();
 

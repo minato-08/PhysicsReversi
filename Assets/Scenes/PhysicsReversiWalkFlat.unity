@@ -12994,17 +12994,6 @@ MonoBehaviour:
   playerId: 1
   carryPoint: {fileID: 923840667}
   tuning: {fileID: 1338516899}
-  moveSpeed: 6
-  turnSpeed: 540
-  pushStrength: 110
-  liftSeconds: {x: 0.16, y: 0.26}
-  liftArc: 0.8
-  swayStiffness: 11
-  swayDamping: 0.35
-  swayAmount: 0.85
-  swayLimit: 0.4
-  swayTilt: 30
-  walkableArea: {fileID: 0}
 --- !u!143 &1380288140
 CharacterController:
   m_ObjectHideFlags: 0
@@ -15881,17 +15870,6 @@ MonoBehaviour:
   playerId: 2
   carryPoint: {fileID: 618866132}
   tuning: {fileID: 1338516899}
-  moveSpeed: 6
-  turnSpeed: 540
-  pushStrength: 110
-  liftSeconds: {x: 0.16, y: 0.26}
-  liftArc: 0.8
-  swayStiffness: 11
-  swayDamping: 0.35
-  swayAmount: 0.85
-  swayLimit: 0.4
-  swayTilt: 30
-  walkableArea: {fileID: 0}
 --- !u!143 &1610185262
 CharacterController:
   m_ObjectHideFlags: 0

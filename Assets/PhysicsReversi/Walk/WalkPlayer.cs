@@ -10,12 +10,6 @@ namespace PhysicsReversi.Walk
         [Tooltip("The values both players share (speed, push, pick-up, sway). Empty: the scene's Player Tuning is found at start.")]
         public PlayerTuning tuning;
         public PlayerTuning Tuning { get { if (tuning == null) tuning = PlayerTuning.Find(); return tuning; } }
-        // Before 2026-11-27 each player held its own copy of the tuning. Kept, hidden, only so that
-        // Gather Player Tuning can move the scene's values into Player Tuning; removed after that.
-        [SerializeField, HideInInspector] float moveSpeed = 6, turnSpeed = 540, pushStrength = 35;
-        [SerializeField, HideInInspector] Vector2 liftSeconds = new Vector2(.16f, .26f);
-        [SerializeField, HideInInspector] float liftArc = .8f, swayStiffness = 11, swayDamping = .35f, swayAmount = .85f, swayLimit = .4f, swayTilt = 30;
-        [SerializeField, HideInInspector] Collider walkableArea;
         public CarryStone HeldStone { get; private set; }
         public bool HasMovementInput => movement.sqrMagnitude > .001f;
         public bool HasManipulationInput => HasMovementInput;

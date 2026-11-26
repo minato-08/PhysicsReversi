@@ -18733,17 +18733,6 @@ MonoBehaviour:
   playerId: 1
   carryPoint: {fileID: 923840667}
   tuning: {fileID: 1723519295}
-  moveSpeed: 6
-  turnSpeed: 540
-  pushStrength: 110
-  liftSeconds: {x: 0.16, y: 0.26}
-  liftArc: 0.8
-  swayStiffness: 13
-  swayDamping: 0.4
-  swayAmount: 0.5
-  swayLimit: 0.4
-  swayTilt: 28
-  walkableArea: {fileID: 197944956}
 --- !u!143 &1380288140
 CharacterController:
   m_ObjectHideFlags: 0
@@ -22581,17 +22570,6 @@ MonoBehaviour:
   playerId: 2
   carryPoint: {fileID: 618866132}
   tuning: {fileID: 1723519295}
-  moveSpeed: 6
-  turnSpeed: 540
-  pushStrength: 110
-  liftSeconds: {x: 0.16, y: 0.26}
-  liftArc: 0.8
-  swayStiffness: 13
-  swayDamping: 0.4
-  swayAmount: 0.5
-  swayLimit: 0.4
-  swayTilt: 28
-  walkableArea: {fileID: 197944956}
 --- !u!143 &1610185262
 CharacterController:
   m_ObjectHideFlags: 0
@@ -22671,19 +22649,6 @@ MonoBehaviour:
   rightFoot: {fileID: 739630308}
   leftHand: {fileID: 1347686811}
   rightHand: {fileID: 2069311074}
-  stepRate: 3.2
-  bobHeight: 0.12
-  waddle: 7
-  footStride: 0.28
-  footLift: 0.14
-  breathRate: 0.6
-  breathAmount: 0.025
-  holdReach: {x: 0, y: 0.35, z: 0.45}
-  liftDip: 0.14
-  liftLean: 16
-  catchSquash: 0.2
-  readyLean: 14
-  blend: 10
 --- !u!114 &1616048551 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3256627637651537068, guid: 5dcf282a4270cd843a9e0b12e4e7b79e, type: 3}
@@ -25579,19 +25544,6 @@ MonoBehaviour:
   rightFoot: {fileID: 285022418}
   leftHand: {fileID: 1121541403}
   rightHand: {fileID: 307235600}
-  stepRate: 3.2
-  bobHeight: 0.12
-  waddle: 7
-  footStride: 0.28
-  footLift: 0.14
-  breathRate: 0.6
-  breathAmount: 0.025
-  holdReach: {x: 0, y: 0.35, z: 0.45}
-  liftDip: 0.14
-  liftLean: 16
-  catchSquash: 0.2
-  readyLean: 14
-  blend: 10
 --- !u!1 &1833650662
 GameObject:
   m_ObjectHideFlags: 0
