@@ -35,7 +35,7 @@ Unity 6、URP、Input Systemを使っています。本筋のシーンは`Assets
 
 持った石は、プレイヤーの正面に、腕の長さだけ離れて浮きます。腕の長さは`Carry point`までの水平距離で、いまは2.1です。プレイヤーが向きを変えると、石は体の周りを回り込んで正面へ来ます。体を横切ることはありません。
 
-石は手の位置へ遅れなく動き、バネでつながれたような伸び縮みはしません。掴んだ直後だけは、石が手元へ寄ってくる動きになります。寄ってくる速さを決めるのは、Walk Playerの`Carry Follow Speed`と`Max Carry Speed`です。
+石は手の位置へ遅れなく動き、バネでつながれたような伸び縮みはしません。掴んだ直後だけは、石が弧を描いて手元へ持ち上がります。かかる時間と弧の高さは、`Player Tuning`の`Lift Seconds`と`Lift Arc`で決まります。
 
 持っている石が何かに阻まれて付いてこられないときは、プレイヤーの動きも制限されます。プレイヤーは石との距離を、腕の長さから0.4を超えて縮めることも広げることもできません。
 
@@ -123,7 +123,7 @@ Unity 6、URP、Input Systemを使っています。本筋のシーンは`Assets
 
 ### 床の端
 
-プレイヤーは床の外へ出られません。床の縁で止まり、縁に沿っては歩けます。範囲はWalk Playerの`Walkable Area`（床の当たり判定）で決まり、メニュー`Keep Players On Table`が設定します。石は床から落ちます（次の節）。
+プレイヤーは床の外へ出られません。床の縁で止まり、縁に沿っては歩けます。範囲は`Player Tuning`の`Walkable Area`（床の当たり判定）で決まり、メニュー`Keep Players On Table`が設定します。石は床から落ちます（次の節）。
 
 ### 床から落ちた石
 
@@ -299,123 +299,9 @@ Unity 6、URP、Input Systemを使っています。本筋のシーンは`Assets
 - どの石が確定しているかが、遠目に分かりません。石そのものの見た目は、確定しても変わりません。
 - 盤上の石が増えると、動きにくくなります。プレイヤーは石に登れず、確定した石は体で押しのけられません。
 
-### 平面版で調整する場所
-
-| 調整する対象 | 場所 |
-|---|---|
-| 摩擦 | `WalkAssets/ContactFlat.physicMaterial` |
-| 体で押す強さ | プレイヤーのWalk Playerの`Push Strength` |
-| 構えと投げ | `Rules and local input`のCarry Authorityの`Ready and throw` |
-| 溜めの表示 | `Play HUD`のAim Hudの`Charged Edge`、`Charged Width` |
-| 固定の強さ | `Rules and local input`のWalk Board Recognitionの`Confirmed stones` |
-| プレイヤーの当たりと登れる段差 | プレイヤーのCharacter Controllerの`Radius`、`Step Offset` |
-
-`Ready and throw`の項目は次のとおりです。
-
-| 項目 | 内容 |
-|---|---|
-| Allow Throw | オフにすると、お椀型のシーンと同じく、押すとすぐ置く |
-| Tap Seconds | この値より短く押すと、置くだけになる |
-| Charge Seconds | 溜めが最大になるまでの時間 |
-| Min / Max Throw Speed | 溜めなし、溜め最大のときの投げる速さ |
-| Ready Height | 構えた石の高さ（持ち主の位置から石の中心まで） |
-| Ready Force | 構えた石を引く力の上限。持ち石で押す強さになる |
-| Ready Weight | 構えた石を、元の重さの何倍のものとして扱うか（初期値0.025）。小さいほど動き出しが速く、当たりが柔らかくなる。押す強さは変わらない |
-
-`Confirmed stones`の項目は次のとおりです。
-
-| 項目 | 内容 |
-|---|---|
-| Hold Multiplier | 中央に置かれた確定石の重さの倍率。1にすると、固定の強さが無効になる |
-| Full Hold Distance | マスの中心からこの距離（マス単位）までは、固定が最大 |
-| Zero Hold Distance | この距離（マス単位）で、固定が0。辺の中点が0.5 |
-
 ## 調整する場所
 
-保存する変更は、Playを止めてから行ってください。摩擦、石の重さ、お椀の形は「盤と石の物理」を参照してください。
-
-### `Rules and local input`のCarry Authority
-
-| 項目 | 内容 |
-|---|---|
-| Reach | 掴める距離（プレイヤーから石の中心まで） |
-| Fall Depth | 盤よりこの値以上低くなった石を予備へ戻す（初期値10m） |
-| Slot Clearance | 予備の置き場所が埋まっているとみなす距離 |
-| Allow Placed Stone Pickup / Allow Opponent Stone Pickup / Lock Confirmed Stones | 掴める石の範囲を変えるスイッチ（「掴める石」を参照） |
-| Turn Held Stone To Holder Color | 掴んだ石を、持ち主の色が上になるよう回すかどうか |
-
-### `Rules and local input`のWalk Board Recognition
-
-| 項目 | 内容 |
-|---|---|
-| Update Interval | 認識の間隔 |
-| Minimum Overlap | マスと認めるのに必要な重なりの割合 |
-| Boundary Tolerance | 重なりが1位のマスと2位のマスの差がこの値未満なら、境界上として除外する |
-| Edge Face Tolerance | 横向きとみなす範囲 |
-| Confirm Seconds | 同じマスに認識され続けて、確定するまでの時間 |
-| Loosen Seconds | 確定した石がマスから外れ続けて、未確定に戻るまでの時間 |
-| Confirmed Mark | 確定した石のマスの印の色（アルファが濃さ） |
-
-認識されたマスの印の色と濃さは、マテリアル`WalkAssets/RecognitionRing.mat`で変えられます。このほか、Play中の黒白の認識数と、確定した石の数（`Confirmed Stones`）を確認できます。
-
-### `Rules and local input`のWalk Capture Controller
-
-| 項目 | 内容 |
-|---|---|
-| Flip Duration | 反転動作の時間（コード上の初期値は1.2秒、現在のシーンでは0.61秒） |
-| Flip Height | 反転時の持ち上げ高さ（1.8m） |
-| Capture Axis | 盤を基準にした回転軸 |
-| Line Break Seconds | 並びが崩れたとみなすまでの時間 |
-| Flip Release Grace | 反転終了後、判定に戻すまでの猶予 |
-| Confirm Capturing Stones | 捕獲を起こした並びの両端の石を、その時点で確定させるかどうか。オフにすると、置いた石を確定前に持ち直して、何度でも捕獲に使える |
-
-### 石のCarry Stone
-
-石を選択すると表示される項目です。
-
-| 項目 | 内容 |
-|---|---|
-| Owner Id | 上面から決まる所属（黒1、白2、判定不能0） |
-| Reserve Owner Id | 予備石の持ち主 |
-| Recognition | 認識結果の詳細。確定した石は末尾に`/ confirmed`が付く。平面版では、続けて固定の強さが`hold 82%`のように出る |
-
-### `Rules and local input`のLocal Walk Input
-
-| 項目 | 内容 |
-|---|---|
-| Players | 操作するプレイヤー。1番目が黒（1台目のゲームパッド、WASDとF）、2番目が白（2台目のゲームパッド、IJKLとH） |
-| View | 移動方向の基準になるカメラ |
-| Grab Focus | キャラクターの正面どれだけ先を基準に、掴む石を選ぶか |
-| Stick Dead Zone | スティックの遊び |
-
-### プレイヤーのWalk Player
-
-| 項目 | 内容 |
-|---|---|
-| Move Speed | 移動速度 |
-| Turn Speed | 向きを変える速さ。持った石が体の周りを回り込む速さも、この値で決まる（この値の2倍まで） |
-| Push Strength | 体で石を押す強さ（お椀型は35、平面版は110） |
-| Carry Follow Speed / Max Carry Speed | 掴んだ直後に、石が手元へ寄ってくる速さ。手に収まった後の動きには影響しない |
-
-持った石の位置は、プレイヤーの子`Carry point - adjust hand position`を動かして変えます。プレイヤーからの水平距離が腕の長さ、高さが持つ高さになります。
-
-### プレイヤーのCharacter Controller
-
-`Step Offset`は、登れる段差の高さです。お椀型は0.6、平面版は0.1にしてあります。この値は、石を歩いて押せるかどうかに関わります（「盤と石の物理」を参照）。お椀型のシーンでは盤が床より0.5高いので、0.5より小さくすると盤へ上がれなくなります。
-
-### `Main Camera`
-
-位置、向き、Field of ViewをInspectorで直接変えます。専用のスクリプトはありません。
-
-### `Play HUD`のAim Hud
-
-| 対象 | 項目 |
-|---|---|
-| 掴める石の強調 | 輪郭線の色（`Grab Edge`）、内側の色づき（`Grab Fill`、アルファが濃さ）、線の太さ（`Grab Width`、720pでのピクセル数） |
-| 持っている石の強調 | `Held Edge`、`Held Fill`、`Held Width` |
-| 溜めている石の強調 | `Charged Edge`、`Charged Width`（平面版。溜まるにつれて、持っている石の線がこの色と太さへ近づく） |
-
-石数表示の配置や大きさは、Playを止めてHierarchyの`Score Panel`で編集できます。
+Inspectorで調節できる値の意味、単位、いまの値は、`TUNING.md`にまとめてあります。2人のプレイヤーに共通の値（移動速度、押す強さ、持った石の揺れ、人形の動きなど）は、`Player Tuning`オブジェクトに1組だけ置いてあります。保存する変更は、Playを止めてから行ってください。
 
 ## シーンの組み立て
 

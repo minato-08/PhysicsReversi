@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 プレイヤーが歩き回り、石を掴んで盤に置く。石の所属は**その時点で上を向いている面の色**で決まり、静止は待たない。
 
-現状の仕様、操作、調整項目は`README.md`（日本語）に、目指す仕様と未確定事項は`SPEC.md`にまとめてある。ルールを変えるときは両方を更新する。
+現状の仕様と操作は`README.md`（日本語）に、Inspectorで調節できる値の説明は`TUNING.md`に、目指す仕様と未確定事項は`SPEC.md`にまとめてある。ルールを変えるときは両方を更新する。
 
 複数のPCから作業するため、`CLAUDE.md`などのコンテキストファイルはコミットしてPushしてよい。`ProjectSettings/ProjectVersion.txt`は、版をそろえ直すとき以外はコミットしない。別のPCも`6000.6.4f1`で開く。
 
@@ -80,6 +80,7 @@ asmdefはなく、コードはすべて`Assembly-CSharp`か`Assembly-CSharp-Edit
 - `AimHud`は表示専用で、プレイヤーごとに、掴む対象の石の輪郭を強調する。`WalkAssets/SilhouetteHighlight.shader`をマスク、線、塗りの3マテリアルで使い、輪郭の内側に線を描く。
 - カメラはスクリプトなしの固定で、盤の横から見下ろす。黒が左、白が右。
 - `WalkPlayer`は、持った石を動的なRigidbodyのまま、`carryPoint`までの水平距離（腕の長さ）を保って体の周りを回り込ませる。持ち石は`WalkPlayer.carryPoint`（正面）に浮く。目標は「石のいまの方位を、手の方位へ向けて少し回した位置」で、そこへ1ステップで届く速度を与える。以前の「距離 × 8」の追従は、遅れが残り、石が体を横切った。掴んだ直後（`arriving`）は、0.16〜0.26秒で、体の周りを回る弧を描いて手へ持ち上げる。動き出しは遅く、手に入る直前がいちばん速い（重さを見せるため。2026-11-25）。手に入ると`StoneCaught`を出す。手にある石は、手の加速度で揺れるばね（`sway`）の分だけ遅れて傾き、歩くと人形の手と一緒に上下する（`HoldBob`）。構えた石は`CarryStone.SetCarriedWeight`で軽くし、`readyForce`の上限つきで加速させる。軽いので動き出しが速く、当たりが柔らかい。押す強さは力の上限だけで決まる。石が阻まれて付いてこられないときは、`StayWithStone`がプレイヤーの移動を腕の長さ±0.4に抑える。
+- `PlayerTuning`（シーンの`Player Tuning`）は、2人のプレイヤーに共通の調整値を1組だけ持つ（2026-11-27から）。移動、押す強さ、持ち上げ、持った石の揺れ、`Walkable Area`、人形の動き（`ToyFigureMotion`）の値。`WalkPlayer`と`ToyFigureMotion`は毎フレームここから読む。プレイヤーごとに値を持たせないこと。メニュー`Add Player Tuning`（`PlayerTuningSetup.cs`）が作り、`Ensure`をほかのセットアップメニューも使う。Inspectorの値の説明は`TUNING.md`にある。
 - `WalkMatch`（平面版のシーンの`Match HUD`）は、1局の流れを持つ。カウントダウン、制限時間、時間切れ、盤の石が止まるのを待って数える、結果、リスタート（シーンの読み込み直し）。対局中以外は`LocalWalkInput`を無効にする。時間切れのときの持ち石は`CarryAuthority.ForceDrop`で落とす。セットアップは`MatchSetup.cs`のメニュー`Add Match Flow (Flat)`。
 - `CarryStone`は、石ごとの状態を持つ。`Owner Id`（上面から決まる盤上の所属）と`Reserve Owner Id`（予備石の持ち主）は別々に管理する。`Confirmed`は確定した石かどうかを表す。`StoneConfirmation`を1つ持ち、離すときと予備へ戻すときにリセットする。石の重さも`CarryStone`が決める。元の重さに、認識処理が渡す固定の強さ（`SetHold`）か、持ち主が渡す軽さ（`SetCarriedWeight`。構えている間だけ）を掛ける。`Rigidbody.mass`を外から直接書き換えないこと。
 

@@ -5337,7 +5337,7 @@ MonoBehaviour:
     m_FontStyle: 1
     m_BestFit: 0
     m_MinSize: 10
-    m_MaxSize: 40
+    m_MaxSize: 64
     m_Alignment: 4
     m_AlignByGeometry: 0
     m_RichText: 1
@@ -12767,6 +12767,74 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: -90}
   m_SizeDelta: {x: 900, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1338516898
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1338516900}
+  - component: {fileID: 1338516899}
+  m_Layer: 0
+  m_Name: Player Tuning
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1338516899
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1338516898}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf15f29c443ba4b1989ffcbed861621e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.PlayerTuning
+  moveSpeed: 6
+  turnSpeed: 540
+  pushStrength: 110
+  walkableArea: {fileID: 0}
+  liftSeconds: {x: 0.16, y: 0.26}
+  liftArc: 0.8
+  swayStiffness: 11
+  swayDamping: 0.35
+  swayAmount: 0.85
+  swayLimit: 0.4
+  swayTilt: 30
+  stepRate: 3.2
+  bobHeight: 0.12
+  waddle: 7
+  footStride: 0.28
+  footLift: 0.14
+  breathRate: 0.6
+  breathAmount: 0.025
+  holdReach: {x: 0, y: 0.35, z: 0.45}
+  liftDip: 0.14
+  liftLean: 16
+  catchSquash: 0.2
+  readyLean: 14
+  blend: 10
+--- !u!4 &1338516900
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1338516898}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1343043494
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -12925,11 +12993,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.WalkPlayer
   playerId: 1
   carryPoint: {fileID: 923840667}
-  moveSpeed: 6
-  turnSpeed: 540
-  pushStrength: 110
-  carryFollowSpeed: 8
-  maxCarrySpeed: 12
+  tuning: {fileID: 1338516899}
 --- !u!143 &1380288140
 CharacterController:
   m_ObjectHideFlags: 0
@@ -15805,11 +15869,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.WalkPlayer
   playerId: 2
   carryPoint: {fileID: 618866132}
-  moveSpeed: 6
-  turnSpeed: 540
-  pushStrength: 110
-  carryFollowSpeed: 8
-  maxCarrySpeed: 12
+  tuning: {fileID: 1338516899}
 --- !u!143 &1610185262
 CharacterController:
   m_ObjectHideFlags: 0
@@ -19042,6 +19102,7 @@ MonoBehaviour:
   matchSeconds: 180
   countdownSeconds: 3
   settleSeconds: 1.5
+  settledSpeed: 0.05
   maxSettleSeconds: 4
   restartLockSeconds: 1
   timerText: {fileID: 1590770067}
@@ -21895,3 +21956,4 @@ SceneRoots:
   - {fileID: 263868336}
   - {fileID: 641144581}
   - {fileID: 1935831924}
+  - {fileID: 1338516900}

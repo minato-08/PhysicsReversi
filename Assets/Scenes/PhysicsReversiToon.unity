@@ -15574,7 +15574,7 @@ ParticleSystem:
         m_RotationOrder: 4
     startSizeY:
       serializedVersion: 3
-      minMaxState: 0
+      minMaxState: 3
       scalar: 1
       minScalar: 1
       maxCurve:
@@ -15591,7 +15591,7 @@ ParticleSystem:
         m_RotationOrder: 4
     startSizeZ:
       serializedVersion: 3
-      minMaxState: 0
+      minMaxState: 3
       scalar: 1
       minScalar: 1
       maxCurve:
@@ -15608,7 +15608,7 @@ ParticleSystem:
         m_RotationOrder: 4
     startRotationX:
       serializedVersion: 3
-      minMaxState: 0
+      minMaxState: 3
       scalar: 0
       minScalar: 0
       maxCurve:
@@ -15625,7 +15625,7 @@ ParticleSystem:
         m_RotationOrder: 4
     startRotationY:
       serializedVersion: 3
-      minMaxState: 0
+      minMaxState: 3
       scalar: 0
       minScalar: 0
       maxCurve:
@@ -18732,17 +18732,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.WalkPlayer
   playerId: 1
   carryPoint: {fileID: 923840667}
-  moveSpeed: 6
-  turnSpeed: 540
-  pushStrength: 110
-  liftSeconds: {x: 0.16, y: 0.26}
-  liftArc: 0.8
-  swayStiffness: 13
-  swayDamping: 0.4
-  swayAmount: 0.5
-  swayLimit: 0.4
-  swayTilt: 28
-  walkableArea: {fileID: 197944956}
+  tuning: {fileID: 1723519295}
 --- !u!143 &1380288140
 CharacterController:
   m_ObjectHideFlags: 0
@@ -22579,17 +22569,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.WalkPlayer
   playerId: 2
   carryPoint: {fileID: 618866132}
-  moveSpeed: 6
-  turnSpeed: 540
-  pushStrength: 110
-  liftSeconds: {x: 0.16, y: 0.26}
-  liftArc: 0.8
-  swayStiffness: 13
-  swayDamping: 0.4
-  swayAmount: 0.5
-  swayLimit: 0.4
-  swayTilt: 28
-  walkableArea: {fileID: 197944956}
+  tuning: {fileID: 1723519295}
 --- !u!143 &1610185262
 CharacterController:
   m_ObjectHideFlags: 0
@@ -22669,19 +22649,6 @@ MonoBehaviour:
   rightFoot: {fileID: 739630308}
   leftHand: {fileID: 1347686811}
   rightHand: {fileID: 2069311074}
-  stepRate: 3.2
-  bobHeight: 0.12
-  waddle: 7
-  footStride: 0.28
-  footLift: 0.14
-  breathRate: 0.6
-  breathAmount: 0.025
-  holdReach: {x: 0, y: 0.35, z: 0.45}
-  liftDip: 0.14
-  liftLean: 16
-  catchSquash: 0.2
-  readyLean: 14
-  blend: 10
 --- !u!114 &1616048551 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 3256627637651537068, guid: 5dcf282a4270cd843a9e0b12e4e7b79e, type: 3}
@@ -24542,6 +24509,74 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1713790321}
   m_CullTransparentMesh: 1
+--- !u!1 &1723519294
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1723519296}
+  - component: {fileID: 1723519295}
+  m_Layer: 0
+  m_Name: Player Tuning
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1723519295
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1723519294}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bf15f29c443ba4b1989ffcbed861621e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.PlayerTuning
+  moveSpeed: 6
+  turnSpeed: 540
+  pushStrength: 110
+  walkableArea: {fileID: 197944956}
+  liftSeconds: {x: 0.16, y: 0.26}
+  liftArc: 0.8
+  swayStiffness: 13
+  swayDamping: 0.4
+  swayAmount: 0.5
+  swayLimit: 0.4
+  swayTilt: 28
+  stepRate: 3.2
+  bobHeight: 0.12
+  waddle: 7
+  footStride: 0.28
+  footLift: 0.14
+  breathRate: 0.6
+  breathAmount: 0.025
+  holdReach: {x: 0, y: 0.35, z: 0.45}
+  liftDip: 0.14
+  liftLean: 16
+  catchSquash: 0.2
+  readyLean: 14
+  blend: 10
+--- !u!4 &1723519296
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1723519294}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1736135146
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -25509,19 +25544,6 @@ MonoBehaviour:
   rightFoot: {fileID: 285022418}
   leftHand: {fileID: 1121541403}
   rightHand: {fileID: 307235600}
-  stepRate: 3.2
-  bobHeight: 0.12
-  waddle: 7
-  footStride: 0.28
-  footLift: 0.14
-  breathRate: 0.6
-  breathAmount: 0.025
-  holdReach: {x: 0, y: 0.35, z: 0.45}
-  liftDip: 0.14
-  liftLean: 16
-  catchSquash: 0.2
-  readyLean: 14
-  blend: 10
 --- !u!1 &1833650662
 GameObject:
   m_ObjectHideFlags: 0
@@ -30623,3 +30645,4 @@ SceneRoots:
   - {fileID: 1740548563}
   - {fileID: 1281558844}
   - {fileID: 1908874362}
+  - {fileID: 1723519296}
