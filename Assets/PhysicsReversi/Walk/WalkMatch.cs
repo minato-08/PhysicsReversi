@@ -32,6 +32,8 @@ namespace PhysicsReversi.Walk
         public Phase Current { get; private set; }
         public float Remaining => Current == Phase.Countdown ? matchSeconds
             : Current == Phase.Playing ? Mathf.Max(0, matchSeconds - phaseTime) : 0;
+        // Seconds since the current phase began; the HUD times its countdown and result from it.
+        public float PhaseTime => phaseTime;
         public int BlackCount { get; private set; }
         public int WhiteCount { get; private set; }
         float phaseTime;

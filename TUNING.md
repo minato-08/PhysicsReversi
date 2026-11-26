@@ -32,7 +32,8 @@ Play中にInspectorで値を変えると、すぐにゲームに反映されま�
 | `Rules and local input` | Stone Feel | 石の手ざわりの演出（トゥーン版だけ） | 7 |
 | `Match HUD` | Walk Match | 1局の流れ（時間、数え方、リスタート） | 8 |
 | `Play HUD` | Aim Hud | 掴める石・持っている石の輪郭 | 9 |
-| `Play HUD` | Score Hud | 石数の表示の文字 | 9 |
+| `Play HUD` | Score Hud | 石数の表示の文字（平面版だけ。トゥーン版では使っていない） | 9 |
+| `Toon HUD` | Match Hud | 石数のバー、タイマー、カウントダウン、結果の表示（トゥーン版だけ） | 9 |
 | `Contact Shadows` | Contact Shadows | 石と人形の足元の影（トゥーン版だけ） | 10 |
 | ほか | Unityの部品とアセット | 当たりの大きさ、重さ、摩擦、重力、カメラ | 11 |
 
@@ -242,7 +243,21 @@ Push Strengthの110は、固定されていない石は動き、確定した石�
 | Loading Label | 盤を読み取る前に出す文 | Reading board |
 | Live Label | 対局中に出す文 | Live score |
 
-石数の表示の配置や大きさは、Playを止めてから、Hierarchyの`Score Panel`で変えます。
+石数の表示の配置や大きさは、Playを止めてから、Hierarchyの`Score Panel`で変えます。トゥーン版では、この表示は消してあり、下の`Toon HUD`を使います。
+
+### `Toon HUD`のMatch Hud（トゥーン版だけ）
+
+画面のUIです。配置、大きさ、色、書体は、メニュー`Physics Reversi/Walk/Build Match HUD (Trial)`（`MatchHudSetup.cs`）が決めます。このメニューを実行し直すと、`Toon HUD`を作り直すので、Hierarchyで手で動かした配置は消えます。配置を変えるときは`MatchHudSetup.cs`を直してください。Inspectorで変えられるのは、動きの値だけです。
+
+| 項目 | 内容 | 単位 | 初期値 |
+|---|---|---|---|
+| Bar Smoothing | 石の割合が変わったとき、バーが新しい位置へ動くのにかかる時間の目安 | 秒 | 0.12 |
+| Last Seconds | 残りがこの秒数以下になると、タイマーが黄色になり、弾み始める | 秒 | 10 |
+| Last Scale | そのときのタイマーの大きさ | 倍 | 1.2 |
+| Pin Height | カウントダウン中の名前の札を、人形の足元からどれだけ上に出すか | m | 3.4 |
+| Go Seconds | 「GO!」を出しておく時間 | 秒 | 0.8 |
+
+文字の縁取りの太さは、材質`Fonts/Fredoka Outlined.mat`（数字、操作の説明）と`Fonts/Fredoka Heavy Outline.mat`（カウントダウンなどの大きな文字）の`Outline Thickness`で変わります。メニューを実行し直すと、この2つの値はコードの値に戻ります。
 
 ## 10. `Contact Shadows`（トゥーン版だけ）
 
