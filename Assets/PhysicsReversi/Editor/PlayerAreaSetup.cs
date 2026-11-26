@@ -18,15 +18,12 @@ namespace PhysicsReversi.Editor
             var top = GameObject.Find("Walkable surrounding floor");
             var area = top != null ? top.GetComponent<Collider>() : null;
             if (area == null) { Debug.LogError("The floor (Walkable surrounding floor) or its collider is missing."); return; }
-            int count = 0;
-            foreach (var root in scene.GetRootGameObjects())
-                foreach (var player in root.GetComponentsInChildren<WalkPlayer>(true))
-                {
-                    Undo.RecordObject(player, "Keep players on table");
-                    player.walkableArea = area; count++;
-                }
+            // Both players share the area through Player Tuning.
+            var tuning = PlayerTuningSetup.Ensure(scene);
+            Undo.RecordObject(tuning, "Keep players on table");
+            tuning.walkableArea = area;
             EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene);
-            Debug.Log(count + " players now stay on " + top.name + ".");
+            Debug.Log("Both players now stay on " + top.name + ".");
         }
     }
 }

@@ -7,26 +7,15 @@ namespace PhysicsReversi.Walk
     {
         public int playerId = 1;
         public Transform carryPoint;
-        public float moveSpeed = 6;
-        public float turnSpeed = 540;
-        public float pushStrength = 35;
-        [Header("Pick up (ART.md 手ざわり)")]
-        [Tooltip("Seconds a picked-up stone takes to reach the hand: from right in front, and from the far end of the reach.")]
-        public Vector2 liftSeconds = new Vector2(.16f, .26f);
-        [Tooltip("How far above the straight line the stone rises on its way to the hand.")]
-        public float liftArc = .8f;
-        [Header("Hold sway")]
-        [Tooltip("How fast the held stone swings back to the hand (angular frequency, rad/s). Lower is looser.")]
-        public float swayStiffness = 11;
-        [Range(0, 1)] public float swayDamping = .35f;
-        [Tooltip("How strongly the hand's acceleration throws the stone off; 1 is a free pendulum.")]
-        [Range(0, 1)] public float swayAmount = .85f;
-        [Tooltip("Farthest the held stone lags behind the hand.")]
-        public float swayLimit = .4f;
-        [Tooltip("Degrees the stone tilts per unit it lags.")]
-        public float swayTilt = 30;
-        [Tooltip("The player cannot walk past the edges of this collider's bounds (the table top). Stones can still fall off. Empty: no limit.")]
-        public Collider walkableArea;
+        [Tooltip("The values both players share (speed, push, pick-up, sway). Empty: the scene's Player Tuning is found at start.")]
+        public PlayerTuning tuning;
+        public PlayerTuning Tuning { get { if (tuning == null) tuning = PlayerTuning.Find(); return tuning; } }
+        // Before 2026-11-27 each player held its own copy of the tuning. Kept, hidden, only so that
+        // Gather Player Tuning can move the scene's values into Player Tuning; removed after that.
+        [SerializeField, HideInInspector] float moveSpeed = 6, turnSpeed = 540, pushStrength = 35;
+        [SerializeField, HideInInspector] Vector2 liftSeconds = new Vector2(.16f, .26f);
+        [SerializeField, HideInInspector] float liftArc = .8f, swayStiffness = 11, swayDamping = .35f, swayAmount = .85f, swayLimit = .4f, swayTilt = 30;
+        [SerializeField, HideInInspector] Collider walkableArea;
         public CarryStone HeldStone { get; private set; }
         public bool HasMovementInput => movement.sqrMagnitude > .001f;
         public bool HasManipulationInput => HasMovementInput;
@@ -67,21 +56,22 @@ namespace PhysicsReversi.Walk
         public void SetMovement(Vector3 worldDirection) => movement = Vector3.ClampMagnitude(worldDirection, 1);
         void Update()
         {
+            var t = Tuning;
             if (controller.isGrounded && verticalSpeed < 0) verticalSpeed = -2;
             verticalSpeed += Physics.gravity.y * Time.deltaTime;
-            Vector3 step = (movement * moveSpeed + Vector3.up * verticalSpeed) * Time.deltaTime;
+            Vector3 step = (movement * t.moveSpeed + Vector3.up * verticalSpeed) * Time.deltaTime;
             if (HeldStone != null && carryPoint != null && !arriving) step = StayWithStone(step);
-            if (walkableArea != null) step = KeepOnArea(step);
+            if (t.walkableArea != null) step = KeepOnArea(step, t.walkableArea);
             controller.Move(step);
             if (movement.sqrMagnitude > .001f)
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(movement), turnSpeed * Time.deltaTime);
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(movement), t.turnSpeed * Time.deltaTime);
             if (HeldStone != null && carryPoint != null) Sway();
         }
         // Players stay on the table (decided 2026-11-25): a player who walked off the edge fell
         // forever and could not play again. The step is trimmed at the edge, so walking along it slides.
-        Vector3 KeepOnArea(Vector3 step)
+        Vector3 KeepOnArea(Vector3 step, Collider walkable)
         {
-            Bounds area = walkableArea.bounds; float margin = controller.radius;
+            Bounds area = walkable.bounds; float margin = controller.radius;
             Vector3 here = transform.position, next = here + step;
             next.x = Mathf.Clamp(next.x, area.min.x + margin, area.max.x - margin);
             next.z = Mathf.Clamp(next.z, area.min.z + margin, area.max.z - margin);
@@ -105,6 +95,7 @@ namespace PhysicsReversi.Walk
         void FixedUpdate()
         {
             if (HeldStone == null || carryPoint == null) return;
+            var t = Tuning;
             // Dynamic body keeps collision response while carried; no parenting/teleport.
             var body = HeldStone.Body;
             bool lowered = IsReady && ReadySeconds >= readyDelay;
@@ -119,7 +110,7 @@ namespace PhysicsReversi.Walk
             Vector3 front = reach > .001f ? hand / reach : transform.forward;
             Vector3 bearing = body.position - transform.position; bearing.y = 0;
             bearing = bearing.sqrMagnitude > .01f ? bearing.normalized : front;
-            float swing = turnSpeed * 2 * Time.fixedDeltaTime;
+            float swing = t.turnSpeed * 2 * Time.fixedDeltaTime;
             bearing = Quaternion.AngleAxis(Mathf.Clamp(Vector3.SignedAngle(bearing, front, Vector3.up), -swing, swing), Vector3.up) * bearing;
             Vector3 hold = transform.position + bearing * reach + Vector3.up * height;
             Vector3 wanted;
@@ -131,16 +122,16 @@ namespace PhysicsReversi.Walk
                 // it keeps up with a holder who turns meanwhile. It goes round the holder, not
                 // through: bearing and distance from the holder are blended, not positions.
                 liftTime += Time.fixedDeltaTime;
-                float t = Mathf.Clamp01(liftTime / liftDuration), u = t * t;
+                float along = Mathf.Clamp01(liftTime / liftDuration), u = along * along;
                 Vector3 from = liftFrom - transform.position;
                 float fromHeight = from.y; from.y = 0;
                 float fromReach = from.magnitude;
                 Vector3 fromBearing = fromReach > .01f ? from / fromReach : front;
                 Vector3 way = Quaternion.AngleAxis(Vector3.SignedAngle(fromBearing, front, Vector3.up) * u, Vector3.up) * fromBearing;
                 Vector3 target = transform.position + way * Mathf.Lerp(fromReach, reach, u)
-                    + Vector3.up * (Mathf.Lerp(fromHeight, height, u) + liftArc * Mathf.Sin(t * Mathf.PI));
+                    + Vector3.up * (Mathf.Lerp(fromHeight, height, u) + t.liftArc * Mathf.Sin(along * Mathf.PI));
                 wanted = Vector3.ClampMagnitude((target - body.position) / Time.fixedDeltaTime, MaxHoldSpeed);
-                if (t >= 1) { arriving = false; StoneCaught?.Invoke(this, HeldStone); }
+                if (along >= 1) { arriving = false; StoneCaught?.Invoke(this, HeldStone); }
             }
             // In the hand it is held firmly: where the hand goes, the stone goes at once, give
             // or take the sway.
@@ -158,7 +149,7 @@ namespace PhysicsReversi.Walk
             else body.linearVelocity = wanted;
             // The lag tips the stone toward it, like a plate carried in both hands.
             Vector3 lean = Vector3.Cross(Vector3.up, sway);
-            Quaternion tilt = lean.sqrMagnitude > 1e-6f ? Quaternion.AngleAxis(swayTilt * sway.magnitude, lean.normalized) : Quaternion.identity;
+            Quaternion tilt = lean.sqrMagnitude > 1e-6f ? Quaternion.AngleAxis(t.swayTilt * sway.magnitude, lean.normalized) : Quaternion.identity;
             Quaternion turn = tilt * carryPoint.rotation * carryRotationOffset * Quaternion.Inverse(body.rotation);
             turn.ToAngleAxis(out float degrees, out Vector3 axis);
             if (degrees > 180) degrees -= 360;
@@ -180,16 +171,17 @@ namespace PhysicsReversi.Walk
             lastHand = hand; lastHandVelocity = velocity; handTracked = true;
             acceleration.y = 0;
             if (arriving || lowered) acceleration = Vector3.zero;
-            float k = swayStiffness * swayStiffness, c = 2 * swayDamping * swayStiffness;
-            swayVelocity += (-k * sway - c * swayVelocity - acceleration * swayAmount) * dt;
+            var t = Tuning;
+            float k = t.swayStiffness * t.swayStiffness, c = 2 * t.swayDamping * t.swayStiffness;
+            swayVelocity += (-k * sway - c * swayVelocity - acceleration * t.swayAmount) * dt;
             sway += swayVelocity * dt;
             if (lowered) sway = Vector3.MoveTowards(sway, Vector3.zero, 4 * dt);
             // At the limit only the outward motion stops, so it slides along the edge, not sticks.
             float outward = sway.magnitude;
-            if (outward > swayLimit)
+            if (outward > t.swayLimit)
             {
                 Vector3 dir = sway / outward;
-                sway = dir * swayLimit;
+                sway = dir * t.swayLimit;
                 swayVelocity -= dir * Mathf.Max(0, Vector3.Dot(swayVelocity, dir));
             }
         }
@@ -198,7 +190,7 @@ namespace PhysicsReversi.Walk
             HeldStone = stone; readySince = -1; arriving = true;
             liftFrom = stone.Body.position; liftTime = 0;
             float distance = Vector3.ProjectOnPlane(liftFrom - carryPoint.position, Vector3.up).magnitude;
-            liftDuration = Mathf.Lerp(liftSeconds.x, liftSeconds.y, Mathf.InverseLerp(0, 6, distance));
+            liftDuration = Mathf.Lerp(Tuning.liftSeconds.x, Tuning.liftSeconds.y,Mathf.InverseLerp(0, 6, distance));
             sway = swayVelocity = Vector3.zero; handTracked = false;
             // Carried level with the holder's own color up, or just as it was picked up.
             Quaternion carried = showOwnColor
@@ -211,7 +203,7 @@ namespace PhysicsReversi.Walk
             foreach (var shape in heldColliders) Physics.IgnoreCollision(controller, shape, true);
         }
         // Put down with a modest amount of walking momentum rather than a launch impulse.
-        public void Detach() => Detach(movement * moveSpeed * .35f);
+        public void Detach() => Detach(movement * Tuning.moveSpeed * .35f);
         // A throw leaves with the velocity it is given.
         public void Detach(Vector3 velocity)
         {
@@ -231,7 +223,7 @@ namespace PhysicsReversi.Walk
             var direction = new Vector3(hit.moveDirection.x, 0, hit.moveDirection.z);
             if (movement.sqrMagnitude > .001f && direction.sqrMagnitude > .001f && !stone.IsFlipping)
                 stone.RegisterPlayerMotion();
-            stone.Body.AddForceAtPosition(direction * pushStrength * Time.deltaTime, hit.point, ForceMode.Impulse);
+            stone.Body.AddForceAtPosition(direction * Tuning.pushStrength * Time.deltaTime, hit.point, ForceMode.Impulse);
         }
         void OnDisable() { Detach(); movement = Vector3.zero; }
     }
