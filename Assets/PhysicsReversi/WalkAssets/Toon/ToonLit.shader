@@ -15,10 +15,11 @@ Shader "PhysicsReversi/ToonLit"
         _OutlineColor ("Outline Color", Color) = (0.2, 0.157, 0.29, 1)
         _OutlineWidth ("Outline Width (px)", Range(0, 10)) = 2
         _ReceiveAmbient ("Receive Ambient", Range(0, 1)) = 0.6
-        // A thin ring drawn flat on the caps of a cylinder (a confirmed stone). Off at alpha 0.
-        _MarkColor ("Cap Ring Color (A = strength)", Color) = (1, 1, 1, 0)
-        _MarkRadius ("Cap Ring Radius (object space)", Range(0, 0.5)) = 0.36
-        _MarkWidth ("Cap Ring Width (object space)", Range(0.001, 0.2)) = 0.03
+        // A faint overlay on the caps of a cylinder: a stone that is not confirmed yet. Off at alpha 0.
+        _LooseColor ("Loose Overlay Color (A = strength)", Color) = (1, 1, 1, 0)
+        [Enum(Plain,0,Stripes,1,Dots,2)] _LoosePattern ("Loose Overlay Pattern", Float) = 1
+        _LooseScale ("Loose Overlay Density (repeats per unit)", Range(1, 20)) = 7
+        _LoosePulse ("Loose Overlay Blink (per second, 0 = steady)", Range(0, 4)) = 0
         // Per-renderer feedback, driven from script through a MaterialPropertyBlock (ToonFx).
         [HideInInspector] _Pop ("Pop Scale", Vector) = (1, 1, 1, 0)
         [HideInInspector] _FlashColor ("Flash Color (A = amount)", Color) = (1, 1, 1, 0)
@@ -52,9 +53,10 @@ Shader "PhysicsReversi/ToonLit"
             half _ReceiveAmbient;
             float4 _Pop;
             half4 _FlashColor;
-            half4 _MarkColor;
-            float _MarkRadius;
-            float _MarkWidth;
+            half4 _LooseColor;
+            float _LoosePattern;
+            float _LooseScale;
+            float _LoosePulse;
         CBUFFER_END
 
         // Squash and stretch for the look only: every pass scales the drawn vertices about the
@@ -188,14 +190,29 @@ Shader "PhysicsReversi/ToonLit"
                 glint *= _HighlightColor.a * mainLight.shadowAttenuation;
                 color = lerp(color, _HighlightColor.rgb, glint);
 
-                // The cap ring: on the flat caps only, a crisp line of even width at any distance.
-                if (_MarkColor.a > 0.0h)
+                // The loose overlay, on the flat caps only: plain, diagonal stripes or dots, laid in
+                // the stone's own space so it turns with the stone, and optionally blinking.
+                if (_LooseColor.a > 0.0h)
                 {
-                    float r = length(input.positionOS.xz);
-                    float d = abs(r - _MarkRadius) - _MarkWidth * 0.5;
-                    float aa = max(fwidth(r), 1e-5);
-                    half ring = half(1.0 - smoothstep(-aa, aa, d)) * step(0.9h, input.capOS);
-                    color = lerp(color, _MarkColor.rgb, ring * _MarkColor.a);
+                    float2 p = input.positionOS.xz * _LooseScale;
+                    half cover = 1.0h;
+                    if (_LoosePattern > 0.5 && _LoosePattern < 1.5)
+                    {
+                        // Half-width stripes: a triangle wave is 0 mid-stripe and 1 mid-gap.
+                        float q = (p.x + p.y) * 0.7071;
+                        float t = abs(frac(q) - 0.5) * 2.0;
+                        float w = max(fwidth(q) * 2.0, 1e-4);
+                        cover = half(1.0 - smoothstep(0.5 - w, 0.5 + w, t));
+                    }
+                    else if (_LoosePattern > 1.5)
+                    {
+                        float2 c = frac(p) - 0.5;
+                        float d = length(c) - 0.24;
+                        float w = max(fwidth(d), 1e-4);
+                        cover = half(1.0 - smoothstep(-w, w, d));
+                    }
+                    half blink = _LoosePulse > 0.0 ? half(0.55 + 0.45 * sin(_Time.y * 6.2832 * _LoosePulse)) : 1.0h;
+                    color = lerp(color, _LooseColor.rgb, cover * blink * _LooseColor.a * step(0.9h, input.capOS));
                 }
 
                 color = lerp(color, _FlashColor.rgb, _FlashColor.a);

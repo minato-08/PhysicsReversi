@@ -168,15 +168,16 @@ Push Strengthの110は、固定されていない石は動き、確定した石�
 
 `Current board`の下の値（認識の状態、黒と白の数、確定した石の数）は、Play中の様子を見るための表示です。変えても意味はありません。
 
-### 確定した石の上面の輪（Confirmed Look、トゥーン版だけ）
+### 未確定の石の模様（Loose Stone Look、トゥーン版だけ）
 
-確定した石の上面に細い輪を描きます。描くのはトゥーンシェーダーで、確定した石だけ、材質を輪の付いた版（`WalkAssets/Toon/ToonStoneBlack Confirmed.mat`、`ToonStoneWhite Confirmed.mat`）に差し替えます。輪の見た目は、この2つの材質の次の値で変えます。メニュー`Try Confirmed Stone Snap and Ring (Trial)`を実行し直すと、コードの値に戻ります。
+盤の上のまだ確定していない石の上面に、うっすらと模様を重ねます。確定した石は何も付きません。描くのはトゥーンシェーダーで、未確定の石だけ、材質を模様の付いた版（`WalkAssets/Toon/ToonStoneBlack Loose.mat`、`ToonStoneWhite Loose.mat`）に差し替えます。模様は、この2つの材質の次の値で変えます。Play中に変えた値も材質に残ります。メニュー`Try Confirmed Stone Snap and Loose Look (Trial)`を実行し直すと、コードの値（`ConfirmedStoneSetup.cs`の`Pattern`と`Blink`）に戻ります。
 
 | 項目 | 内容 | 黒の面 | 白の面 |
 |---|---|---|---|
-| Cap Ring Color | 輪の色。アルファが濃さ | ミルク、0.6 | プラム、0.65 |
-| Cap Ring Radius | 輪の半径。石の縁が0.5 | 0.36 | 0.36 |
-| Cap Ring Width | 輪の太さ | 0.05 | 0.05 |
+| Loose Overlay Color | 模様の色。アルファが濃さ | ミルク、0.22 | プラム、0.16 |
+| Loose Overlay Pattern | 模様の形。Plain（無地）、Stripes（斜めの縞）、Dots（水玉） | Stripes | Stripes |
+| Loose Overlay Density | 模様の細かさ（石の幅あたりの繰り返しの数） | 7 | 7 |
+| Loose Overlay Blink | 1秒あたりの点滅の回数。0なら点滅しない | 0 | 0 |
 
 ## 5. `Rules and local input`のWalk Capture Controller
 

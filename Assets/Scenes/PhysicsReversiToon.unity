@@ -4199,12 +4199,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PhysicsReversi.Walk.ConfirmedLook
   recognition: {fileID: 266304605}
-  loose:
+  plain:
   - {fileID: 2100000, guid: 62dd315908bb3402d9ead15142a1eed5, type: 2}
   - {fileID: 2100000, guid: 15f509c30f3664dc1b9dd49880aee60e, type: 2}
-  confirmed:
-  - {fileID: 2100000, guid: f285ed95d4cc14fbc82cd0aa0c4f19b6, type: 2}
-  - {fileID: 2100000, guid: 2a43824e4894e43c18354de77dba0034, type: 2}
+  loose:
+  - {fileID: 2100000, guid: ce086e352a6074acbb9e6f6093d392bc, type: 2}
+  - {fileID: 2100000, guid: 860c3c3daa15e4a908c385bbb4a9f3f0, type: 2}
 --- !u!1001 &271095396
 PrefabInstance:
   m_ObjectHideFlags: 0

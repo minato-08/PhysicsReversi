@@ -6,15 +6,19 @@ using PhysicsReversi.Walk;
 namespace PhysicsReversi.Editor
 {
     // Trial (2026-11-27, SPEC.md 試遊で出た課題 2 and 3) in the toon scene: confirmed stones slide to
-    // the middle of their cell, are all held equally firmly, and wear a thin ring on their caps.
-    // The switches stay off in the scripts; this turns them on here. Safe to run again: the ring
-    // materials are refreshed, the other tuned values kept.
+    // the middle of their cell and are all held equally firmly; stones on the board that are not
+    // confirmed yet wear a faint overlay on their caps, and confirmed ones look plain. The switches
+    // stay off in the scripts; this turns them on here. Safe to run again: the overlay materials
+    // are refreshed to the values below, the other tuned values kept.
     public static class ConfirmedStoneSetup
     {
         const string SceneName = "PhysicsReversiToon";
         const string Dir = "Assets/PhysicsReversi/WalkAssets/Toon/";
+        // 0 plain, 1 stripes, 2 dots; and blinks per second, 0 for steady.
+        const int Pattern = 1;
+        const float Blink = 0;
 
-        [MenuItem("Physics Reversi/Walk/Try Confirmed Stone Snap and Ring (Trial)")]
+        [MenuItem("Physics Reversi/Walk/Try Confirmed Stone Snap and Loose Look (Trial)")]
         public static void Apply()
         {
             if (EditorApplication.isPlaying) { Debug.LogWarning("Stop Play first."); return; }
@@ -24,38 +28,39 @@ namespace PhysicsReversi.Editor
             foreach (var root in scene.GetRootGameObjects()) if (recognition == null) recognition = root.GetComponentInChildren<WalkBoardRecognition>(true);
             if (recognition == null || recognition.stones == null || recognition.stones.Length == 0) { Debug.LogError("No board recognition with stones."); return; }
 
-            // The ring on a black cap is milk, on a white cap the outline plum; both kept light.
-            var black = Ring("ToonStoneBlack", Palette.StoneWhite, .6f);
-            var white = Ring("ToonStoneWhite", Palette.Outline, .65f);
-            if (black.loose == null || white.loose == null) { Debug.LogError("The toon stone materials are missing; run Apply Toon Look first."); return; }
+            // On a black cap the overlay is milk, on a white cap the outline plum; both faint.
+            var black = Overlay("ToonStoneBlack", Palette.StoneWhite, .22f);
+            var white = Overlay("ToonStoneWhite", Palette.Outline, .16f);
+            if (black.plain == null || white.plain == null) { Debug.LogError("The toon stone materials are missing; run Apply Toon Look first."); return; }
 
             Undo.RecordObject(recognition, "Try confirmed stone snap");
             recognition.snapToCenter = true; recognition.uniformHold = true;
-            var look = recognition.GetComponent<ConfirmedLook>();
-            if (look == null) look = Undo.AddComponent<ConfirmedLook>(recognition.gameObject);
-            Undo.RecordObject(look, "Try confirmed stone ring");
+            var look = recognition.GetComponent<LooseStoneLook>();
+            if (look == null) look = Undo.AddComponent<LooseStoneLook>(recognition.gameObject);
+            Undo.RecordObject(look, "Try loose stone look");
             look.recognition = recognition;
-            look.loose = new[] { black.loose, white.loose };
-            look.confirmed = new[] { black.ring, white.ring };
+            look.plain = new[] { black.plain, white.plain };
+            look.loose = new[] { black.overlay, white.overlay };
 
             EditorSceneManager.MarkSceneDirty(scene); EditorSceneManager.SaveScene(scene); AssetDatabase.SaveAssets();
-            Debug.Log("Confirmed stones now slide to the middle, are held equally (Hold Multiplier " + recognition.holdMultiplier + "x), and wear a ring.");
+            Debug.Log("Confirmed stones now slide to the middle and are held equally (Hold Multiplier " + recognition.holdMultiplier + "x); loose stones wear an overlay.");
         }
 
-        static (Material loose, Material ring) Ring(string name, Color color, float strength)
+        static (Material plain, Material overlay) Overlay(string name, Color color, float strength)
         {
-            var loose = AssetDatabase.LoadAssetAtPath<Material>(Dir + name + ".mat");
-            if (loose == null) return (null, null);
-            string path = Dir + name + " Confirmed.mat";
-            var ring = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (ring == null) { ring = new Material(loose) { name = name + " Confirmed" }; AssetDatabase.CreateAsset(ring, path); }
-            else ring.CopyPropertiesFromMaterial(loose);
+            var plain = AssetDatabase.LoadAssetAtPath<Material>(Dir + name + ".mat");
+            if (plain == null) return (null, null);
+            string path = Dir + name + " Loose.mat";
+            var overlay = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (overlay == null) { overlay = new Material(plain) { name = name + " Loose" }; AssetDatabase.CreateAsset(overlay, path); }
+            else overlay.CopyPropertiesFromMaterial(plain);
             color.a = strength;
-            ring.SetColor("_MarkColor", color);
-            ring.SetFloat("_MarkRadius", .36f);
-            ring.SetFloat("_MarkWidth", .05f);
-            EditorUtility.SetDirty(ring);
-            return (loose, ring);
+            overlay.SetColor("_LooseColor", color);
+            overlay.SetFloat("_LoosePattern", Pattern);
+            overlay.SetFloat("_LooseScale", 7);
+            overlay.SetFloat("_LoosePulse", Blink);
+            EditorUtility.SetDirty(overlay);
+            return (plain, overlay);
         }
     }
 }
