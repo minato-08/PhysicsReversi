@@ -41,6 +41,10 @@ namespace PhysicsReversi.Walk
         public GameObject countdownIntro;
         [Tooltip("One per player, in the order of Local Walk Input's players.")]
         public RectTransform[] pins;
+        [Tooltip("The size of 3, 2, 1 against GO! (which is drawn at full size). Kept modest: GO! is the moment.")]
+        public float countdownScale = .72f;
+        [Tooltip("How much 3, 2, 1 swell as each appears.")]
+        public float countdownPop = .12f;
         [Tooltip("How far above a player's feet its pin points (world units).")]
         public float pinHeight = 3.4f;
         [Header("GO!")]
@@ -65,7 +69,7 @@ namespace PhysicsReversi.Walk
         float barShare = .5f, barVelocity;
         string lastCountdown;
         WalkMatch.Phase lastPhase = (WalkMatch.Phase)(-1);
-        readonly Dictionary<RectTransform, float> pops = new Dictionary<RectTransform, float>();
+        readonly Dictionary<RectTransform, (float start, float rest, float amount)> pops = new Dictionary<RectTransform, (float, float, float)>();
         readonly List<(TMP_Text text, float born, Vector2 from)> deltas = new List<(TMP_Text, float, Vector2)>();
         const float PopSeconds = .38f, DeltaSeconds = .9f;
 
@@ -153,7 +157,7 @@ namespace PhysicsReversi.Walk
             if (value != lastCountdown && countdownNumber != null)
             {
                 SetText(countdownNumber, value); lastCountdown = value;
-                if (counting) Pop(countdownNumber.rectTransform); else pops.Remove(countdownNumber.rectTransform);
+                if (counting) Pop(countdownNumber.rectTransform, countdownScale, countdownPop); else pops.Remove(countdownNumber.rectTransform);
             }
             if (counting) { if (countdownNumber != null) countdownNumber.alpha = 1; PlacePins(); }
             else if (countdownNumber != null) Go(match.PhaseTime);
@@ -216,7 +220,8 @@ namespace PhysicsReversi.Walk
             SetActive(restartHint, match.PhaseTime >= match.restartLockSeconds);
         }
 
-        void Pop(RectTransform rect) { if (rect != null) pops[rect] = Time.time; }
+        // A bump from rest size: up by amount in the first third, a small dip under rest, then settled.
+        void Pop(RectTransform rect, float rest = 1, float amount = .35f) { if (rect != null) pops[rect] = (Time.time, rest, amount); }
 
         void Animate()
         {
@@ -224,11 +229,11 @@ namespace PhysicsReversi.Walk
             foreach (var pair in pops)
             {
                 if (pair.Key == null) { (done ??= new List<RectTransform>()).Add(pair.Key); continue; }
-                float t = (Time.time - pair.Value) / PopSeconds;
-                if (t >= 1) { pair.Key.localScale = Vector3.one; (done ??= new List<RectTransform>()).Add(pair.Key); continue; }
-                // Up to 35% bigger in the first third, a small dip under rest, then settled.
+                var (start, rest, amount) = pair.Value;
+                float t = (Time.time - start) / PopSeconds;
+                if (t >= 1) { pair.Key.localScale = Vector3.one * rest; (done ??= new List<RectTransform>()).Add(pair.Key); continue; }
                 float s = t < .3f ? Mathf.Sin(t / .3f * Mathf.PI * .5f) : Mathf.Cos((t - .3f) / .7f * Mathf.PI * 1.5f) * (1 - (t - .3f) / .7f);
-                pair.Key.localScale = Vector3.one * (1 + .35f * s);
+                pair.Key.localScale = Vector3.one * rest * (1 + amount * s);
             }
             if (done != null) foreach (var rect in done) pops.Remove(rect);
 
