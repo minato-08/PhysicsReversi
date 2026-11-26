@@ -64,6 +64,17 @@ namespace PhysicsReversi.Walk
         public GameObject result;
         public TMP_Text resultTitle, resultBlack, resultWhite;
         public GameObject restartHint;
+        [Tooltip("The result as floating text over the board, used when there is no stacker.")]
+        public GameObject floatingResult;
+
+        [Header("Result on the stacks")]
+        [Tooltip("Stacks the counted stones; the counts and WIN! then ride on the stacks.")]
+        public ResultStacker stacker;
+        public RectTransform stackLabelBlack, stackLabelWhite;
+        public TMP_Text stackCountBlack, stackCountWhite;
+        public TMP_Text winBlack, winWhite;
+        [Tooltip("How far above a stack's top its count floats (world units).")]
+        public float labelLift = .8f;
 
         int shownBlack = -1, shownWhite = -1;
         float barShare = .5f, barVelocity;
@@ -209,6 +220,9 @@ namespace PhysicsReversi.Walk
         // later (UI.md); the numbers will then move onto the stacks.
         void UpdateResult(bool entered)
         {
+            bool stacking = stacker != null;
+            SetActive(floatingResult, !stacking);
+            if (stacking) { UpdateStacks(entered); return; }
             int black = match.BlackCount, white = match.WhiteCount;
             if (entered)
             {
@@ -221,6 +235,60 @@ namespace PhysicsReversi.Walk
         }
 
         // A bump from rest size: up by amount in the first third, a small dip under rest, then settled.
+        // The counts stand on the stacks and count up as the stones land; once all are down the
+        // winner's stack gets WIN! (or both DRAW) and the loser's count fades back.
+        void UpdateStacks(bool entered)
+        {
+            if (entered)
+            {
+                stackedShown[1] = stackedShown[2] = -1; resultShown = false;
+                foreach (var win in new[] { winBlack, winWhite }) SetActive(win != null ? win.gameObject : null, false);
+                Fade(stackCountBlack, 1); Fade(stackCountWhite, 1);
+            }
+            bool started = stacker.Started;
+            SetActive(stackLabelBlack != null ? stackLabelBlack.gameObject : null, started);
+            SetActive(stackLabelWhite != null ? stackLabelWhite.gameObject : null, started);
+            if (!started) { SetActive(restartHint, false); return; }
+            Follow(stackLabelBlack, 1); Follow(stackLabelWhite, 2);
+            Count(stackCountBlack, 1); Count(stackCountWhite, 2);
+            if (stacker.Done && !resultShown)
+            {
+                resultShown = true;
+                int black = match.BlackCount, white = match.WhiteCount;
+                ShowWin(winBlack, black > white ? "WIN!" : black == white ? "DRAW" : null);
+                ShowWin(winWhite, white > black ? "WIN!" : black == white ? "DRAW" : null);
+                if (black < white) Fade(stackCountBlack, .55f);
+                if (white < black) Fade(stackCountWhite, .55f);
+            }
+            SetActive(restartHint, stacker.Done && match.PhaseTime >= match.restartLockSeconds);
+        }
+
+        readonly int[] stackedShown = { 0, -1, -1 };
+        bool resultShown;
+
+        void Count(TMP_Text text, int owner)
+        {
+            int n = stacker.Stacked(owner);
+            if (text == null || n == stackedShown[owner]) return;
+            bool grew = stackedShown[owner] >= 0 && n > stackedShown[owner];
+            stackedShown[owner] = n; SetText(text, n.ToString());
+            if (grew) Pop(text.rectTransform, 1, .2f);
+        }
+
+        void Follow(RectTransform label, int owner)
+        {
+            if (label == null || view == null) return;
+            Vector3 screen = view.WorldToScreenPoint(stacker.StackTop(owner) + Vector3.up * labelLift);
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle((RectTransform)transform, screen, null, out var local))
+                label.anchoredPosition = local;
+        }
+
+        void ShowWin(TMP_Text text, string value)
+        {
+            if (text == null || value == null) return;
+            SetText(text, value); SetActive(text.gameObject, true); Pop(text.rectTransform, 1, .6f);
+        }
+
         void Pop(RectTransform rect, float rest = 1, float amount = .35f) { if (rect != null) pops[rect] = (Time.time, rest, amount); }
 
         void Animate()
