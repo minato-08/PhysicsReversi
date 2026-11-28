@@ -84,6 +84,7 @@ asmdefはなく、コードはすべて`Assembly-CSharp`か`Assembly-CSharp-Edit
 - `MatchHud`（トゥーン版のシーンの`Toon HUD`）は、画面のUI。上の石数のバー（黒と白の割合）とその下のタイマー、下の左右の操作の説明、カウントダウン、時間切れ、結果を出す。`WalkMatch`と盤の認識を読むだけで、何も書き換えない。部品はメニュー`Build Match HUD (Trial)`（`MatchHudSetup.cs`）が組み、再実行すると作り直す。文字はTextMeshPro（必須リソースは`Assets/TextMesh Pro/`）とFredoka（`Assets/PhysicsReversi/Fonts/`）。何を出すかは`UI.md`。
 - `ResultStacker`（トゥーン版の`Match HUD`）は、結果に入ったら、数えた石をキネマティックにして盤の中央の2つの山へ飛ばして積む。始める前に`WalkBoardRecognition`と`WalkCaptureController`を止める（積んだ石が盤として読まれて捕獲が起きないように）。勝敗の数は`WalkMatch`が結果に入った時点で決めているので、積み上げは表示だけ。積み終わるまで`WalkMatch`はリスタートを受け付けない。
 - `WalkMatch`（平面版のシーンの`Match HUD`）は、1局の流れを持つ。カウントダウン、制限時間、時間切れ、盤の石が止まるのを待って数える、結果、リスタート（シーンの読み込み直し）。対局中以外は`LocalWalkInput`を無効にする。時間切れのときの持ち石は`CarryAuthority.ForceDrop`で落とす。セットアップは`MatchSetup.cs`のメニュー`Add Match Flow (Flat)`。
+- `GameAudio`は、音を鳴らす（`AUDIO.md`）。シーンには置かず、Play開始時に`RuntimeInitializeOnLoadMethod`で自動で作られ、シーンの読み込み直しを越えて残る。`CarryStone.Impacted`と`CarryAuthority.StoneGrabbed`を聞くだけで、何も書き換えない。音の一覧は`Resources/GameSounds.asset`（`GameSounds`）で、`Audio/`フォルダの中身から`GameSoundsImport`（エディタ）が自動で作り直す。音量などの値は作り直しても残る。
 - `CarryStone`は、石ごとの状態を持つ。`Owner Id`（上面から決まる盤上の所属）と`Reserve Owner Id`（予備石の持ち主）は別々に管理する。`Confirmed`は確定した石かどうかを表す。`StoneConfirmation`を1つ持ち、離すときと予備へ戻すときにリセットする。石の重さも`CarryStone`が決める。元の重さに、認識処理が渡す固定の強さ（`SetHold`）か、持ち主が渡す軽さ（`SetCarriedWeight`。構えている間だけ）を掛ける。`Rigidbody.mass`を外から直接書き換えないこと。
 
 #### エディタセットアップ層
