@@ -13,7 +13,9 @@ namespace PhysicsReversi
         // Committed at once, without the wait: the stone has just made a capture from this cell.
         public void ConfirmNow(int cell) { if (cell < 0) return; Confirmed = true; Cell = cell; seconds = 0; }
         // cell is where the stone is recognized now, or -1. A frozen stone (mid capture flip) keeps its state.
-        public void Tick(int cell, bool frozen, double deltaSeconds, double confirmSeconds, double loosenSeconds)
+        // mayConfirm false holds an unconfirmed stone back: the count stays at zero (off the middle, say,
+        // or not put down by hand). It does not loosen a stone that is already confirmed.
+        public void Tick(int cell, bool frozen, double deltaSeconds, double confirmSeconds, double loosenSeconds, bool mayConfirm = true)
         {
             if (frozen) return;
             if (Confirmed)
@@ -24,7 +26,7 @@ namespace PhysicsReversi
                 if (seconds >= loosenSeconds) { Confirmed = false; Cell = cell; seconds = 0; }
                 return;
             }
-            if (cell < 0 || cell != Cell) { Cell = cell; seconds = 0; return; }
+            if (cell < 0 || cell != Cell || !mayConfirm) { Cell = cell; seconds = 0; return; }
             seconds += deltaSeconds;
             if (seconds >= confirmSeconds) { Confirmed = true; seconds = 0; }
         }

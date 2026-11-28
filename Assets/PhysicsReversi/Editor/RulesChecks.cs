@@ -199,6 +199,28 @@ namespace PhysicsReversi
             Check(committed.Confirmed, "a stone confirmed by capturing rides out a brief dropout like any other"); checks++;
             committed.Tick(-1, false, .25, 1.5, .5);
             Check(!committed.Confirmed, "a stone confirmed by capturing still comes loose when knocked out of its cell"); checks++;
+            // Held back (off the middle, or not put down by hand): the count does not run, but a confirmed stone stays.
+            var heldBack = new StoneConfirmation();
+            for (int i = 0; i < 5; i++) heldBack.Tick(27, false, 1, 1.5, .5, false);
+            Check(!heldBack.Confirmed && heldBack.Cell == 27, "a stone that may not be confirmed never is, however long it stays"); checks++;
+            heldBack.Tick(27, false, 1, 1.5, .5);
+            Check(!heldBack.Confirmed, "a stone let through starts counting from zero"); checks++;
+            heldBack.Tick(27, false, 1, 1.5, .5); heldBack.Tick(27, false, 5, 1.5, .5, false);
+            Check(heldBack.Confirmed, "holding back does not loosen a stone already confirmed"); checks++;
+            // Put down by hand, or pushed in.
+            var hand = new HandPlacement();
+            Check(!hand.Allows(27), "a stone never put down by hand is not placed"); checks++;
+            hand.Place();
+            Check(hand.Allows(27) && hand.Allows(-1), "a stone put down by hand is placed"); checks++;
+            hand.Knock(27);
+            Check(hand.Allows(27) && hand.Allows(-1) && hand.Allows(27), "a knocked stone that stays in its cell is still placed"); checks++;
+            Check(!hand.Allows(28) && !hand.Allows(27), "a stone knocked into another cell is no longer placed, even back in its own"); checks++;
+            hand.Place(); hand.Knock(-1);
+            Check(hand.Allows(-1) && hand.Allows(30) && !hand.Allows(31), "a stone knocked before it was recognized keeps the first cell it is recognized in"); checks++;
+            hand.Place(); hand.Allows(30);
+            Check(hand.Allows(31), "a stone not knocked may cross cells (a throw) and stay placed"); checks++;
+            hand.Clear();
+            Check(!hand.Allows(31), "a returned stone is not placed"); checks++;
             live.Clear(); b = new BoardRules.Snapshot();
             b.Ids[0] = 10; b.Owners[0] = 1; b.Ids[1] = 11; b.Owners[1] = 2; b.Ids[2] = 12; b.Owners[2] = 1;
             var ends = new HashSet<int>();

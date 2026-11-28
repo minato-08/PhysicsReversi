@@ -23,19 +23,36 @@ namespace PhysicsReversi.Walk
         public static event System.Action<CarryStone> FlipEnded;
         public static event System.Action<CarryStone> BecameConfirmed;
         public MotionOrigin Motion { get; private set; }
-        public void RegisterPlayerMotion() => Motion = new MotionOrigin(true);
+        public void RegisterPlayerMotion() => SetMotion(new MotionOrigin(true));
+        // The motion of this stone's own release (put down or thrown). Any other cause knocks it.
+        MotionOrigin releasedBy;
+        void SetMotion(MotionOrigin origin)
+        {
+            Motion = origin;
+            if (origin != null && origin != releasedBy) hand.Knock(confirmation.Cell);
+        }
+        readonly HandPlacement hand = new HandPlacement();
+        // Put on the board by hand and not pushed into another cell since; see HandPlacement.
+        public bool PlacedByHand => hand.Placed;
         readonly StoneConfirmation confirmation = new StoneConfirmation();
         // Recognized in one cell for long enough; see StoneConfirmation.
         public bool Confirmed => confirmation.Confirmed;
         // The cell this stone is confirmed in, or -1.
         public int ConfirmedCell => confirmation.Confirmed ? confirmation.Cell : -1;
         // Called by the board recognition only, once per sample, after it has set the
-        // recognition text. cell is -1 when the stone is not recognized.
-        public void TickConfirmation(int cell, float deltaSeconds, float confirmSeconds, float loosenSeconds)
+        // recognition text. cell is -1 when the stone is not recognized. centered: near enough the middle
+        // of that cell to be confirmed. requirePlaced: only a stone put down by hand may be confirmed.
+        public void TickConfirmation(int cell, float deltaSeconds, float confirmSeconds, float loosenSeconds, bool centered = true, bool requirePlaced = false)
         {
             bool was = Confirmed;
+            bool placed = hand.Allows(cell);
             if (status != StoneStatus.OnBoard) confirmation.Reset();
-            else confirmation.Tick(cell, IsFlipping, deltaSeconds, confirmSeconds, loosenSeconds);
+            else confirmation.Tick(cell, IsFlipping, deltaSeconds, confirmSeconds, loosenSeconds, centered && (placed || !requirePlaced));
+            if (!Confirmed && cell >= 0 && status == StoneStatus.OnBoard)
+            {
+                if (requirePlaced && !placed) recognition += " / pushed in";
+                else if (!centered) recognition += " / off the middle";
+            }
             if (Confirmed && !was) BecameConfirmed?.Invoke(this);
             if (Confirmed) recognition += " / confirmed";
         }
@@ -69,7 +86,7 @@ namespace PhysicsReversi.Walk
         public void Flip(Vector3 up, Vector3 axis, float height, float duration)
         {
             if (IsFlipping || Body == null || Body.isKinematic || status != StoneStatus.OnBoard) return;
-            Motion = new MotionOrigin(false);
+            SetMotion(new MotionOrigin(false));
             StartCoroutine(FlipBody(up, axis, height, duration));
             FlipStarted?.Invoke(this);
         }
@@ -107,7 +124,7 @@ namespace PhysicsReversi.Walk
         public void SnapTo(Vector3 target, float seconds)
         {
             if (IsFlipping || IsSnapping || Body == null || Body.isKinematic || status != StoneStatus.OnBoard) return;
-            Motion = new MotionOrigin(false);
+            SetMotion(new MotionOrigin(false));
             StartCoroutine(SnapBody(target, Mathf.Max(.05f, seconds)));
         }
         IEnumerator SnapBody(Vector3 target, float seconds)
@@ -143,11 +160,13 @@ namespace PhysicsReversi.Walk
             Body = GetComponent<Rigidbody>(); baseMass = Body.mass;
             HomePosition = transform.position; HomeRotation = transform.rotation;
             HasReserveSlot = status == StoneStatus.Reserve;
+            // The opening stones count as put down by hand.
+            if (status == StoneStatus.OnBoard) hand.Place();
         }
         // Called by CarryAuthority only.
         public void ReturnToReserve(Vector3 position, Quaternion rotation)
         {
-            StopAllCoroutines(); IsFlipping = false; IsSnapping = false; Motion = null; boardContacts.Clear(); confirmation.Reset();
+            StopAllCoroutines(); IsFlipping = false; IsSnapping = false; Motion = null; boardContacts.Clear(); confirmation.Reset(); hand.Clear();
             Holder = null; status = StoneStatus.Reserve; ownerId = reserveOwnerId;
             transform.SetPositionAndRotation(position, rotation);
             Body.position = position; Body.rotation = rotation;
@@ -165,8 +184,8 @@ namespace PhysicsReversi.Walk
             var newest = MotionOrigin.Newest(Motion, other.Motion);
             if (newest == null) return;
             // The capture motor remains the cause of its own motion until it finishes.
-            if (!IsFlipping) Motion = newest;
-            if (!other.IsFlipping) other.Motion = newest;
+            if (!IsFlipping && Motion != newest) SetMotion(newest);
+            if (!other.IsFlipping && other.Motion != newest) other.SetMotion(newest);
         }
         void OnCollisionExit(Collision collision) => boardContacts.Remove(collision.collider);
         void TrackBoardContact(Collision collision)
@@ -199,7 +218,8 @@ namespace PhysicsReversi.Walk
             Holder = null; status = StoneStatus.OnBoard;
             // A released stone always starts loose, even if grabbed and dropped between two samples.
             confirmation.Reset();
-            RegisterPlayerMotion();
+            releasedBy = new MotionOrigin(true); hand.Place();
+            SetMotion(releasedBy);
         }
     }
 }

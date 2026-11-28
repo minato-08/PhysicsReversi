@@ -7,7 +7,8 @@ namespace PhysicsReversi.Editor
 {
     // Trial (2026-11-27, SPEC.md 試遊で出た課題 2 and 3) in the toon scene: confirmed stones slide to
     // the middle of their cell and are all held equally firmly; stones on the board that are not
-    // confirmed yet wear a faint overlay on their caps, and confirmed ones look plain. The switches
+    // confirmed yet wear a faint overlay on their caps, and confirmed ones look plain. Only stones put
+    // down by hand and near the middle of their cell are confirmed. The switches
     // stay off in the scripts; this turns them on here. Safe to run again: the overlay materials
     // are refreshed to the values below, the other tuned values kept.
     public static class ConfirmedStoneSetup
@@ -39,6 +40,9 @@ namespace PhysicsReversi.Editor
 
             Undo.RecordObject(recognition, "Try confirmed stone snap");
             recognition.snapToCenter = true; recognition.uniformHold = true;
+            // 2026-11-28: confirming is stricter. Only a stone near the middle, and only one put down or
+            // thrown by hand, is confirmed.
+            recognition.requireCentered = true; recognition.handPlacedOnly = true;
             var look = recognition.GetComponent<LooseStoneLook>();
             if (look == null) look = Undo.AddComponent<LooseStoneLook>(recognition.gameObject);
             Undo.RecordObject(look, "Try loose stone look");

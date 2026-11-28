@@ -31,6 +31,12 @@ namespace PhysicsReversi.Walk
         [Min(.05f)] public float snapSeconds = .25f;
         [Tooltip("Trial (2026-11-27): every confirmed stone is held at the full Hold Multiplier, however far from the middle it lies. Meant to go with Snap To Center, which puts them all in the middle anyway.")]
         public bool uniformHold;
+        [Tooltip("Trial (2026-11-28): only a stone near the middle of its cell is confirmed (Centered Distance).")]
+        public bool requireCentered;
+        [Tooltip("With Require Centered: how far from the middle of its cell, in cells, a stone may lie and still be confirmed. The middle of an edge is at .5.")]
+        [Range(0, .5f)] public float centeredDistance = .2f;
+        [Tooltip("Trial (2026-11-28): only a stone put down or thrown by hand is confirmed, not one pushed into its cell. Capturing ends are still confirmed on the spot.")]
+        public bool handPlacedOnly;
         [Tooltip("Color of the corner marks around a confirmed stone. Other recognized cells keep the mark material's own color.")]
         public Color confirmedMark = new Color(.82f, .95f, .9f, 1);
         [Header("Current board")]
@@ -121,7 +127,14 @@ namespace PhysicsReversi.Walk
             for (int i = 0; i < stones.Length; i++)
             {
                 var stone = stones[i]; if (stone == null) continue;
-                stone.TickConfirmation(System.Array.IndexOf(Snapshot.Ids, i), deltaSeconds, confirmSeconds, loosenSeconds);
+                int recognized = System.Array.IndexOf(Snapshot.Ids, i);
+                bool centered = true;
+                if (requireCentered && recognized >= 0)
+                {
+                    Vector3 at = boardOrigin.InverseTransformPoint(stone.transform.position) / cellWidth;
+                    centered = StoneHold.CenterDistance(at.x, at.z, recognized) <= centeredDistance;
+                }
+                stone.TickConfirmation(recognized, deltaSeconds, confirmSeconds, loosenSeconds, centered, handPlacedOnly);
                 if (stone.Confirmed) confirmedStones++;
                 // Confirmed since the last sample, by time or by a capture: slide it into the middle.
                 if (snapToCenter && stone.Confirmed && !wasConfirmed[i]) stone.SnapTo(CellCenter(stone.ConfirmedCell, stone.transform.position), snapSeconds);
